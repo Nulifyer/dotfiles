@@ -228,6 +228,37 @@ function __webapp_browser
     return 1
 end
 
+function __webapp_startup_wm_class --argument-names browser url
+    # Chromium app windows use an XDG app ID built from the browser process,
+    # URL-derived app name, and profile directory. Plasma uses this value to
+    # associate the running window with its .desktop launcher.
+    set -l browser_id (path basename "$browser")
+    switch "$browser_id"
+        case brave-browser
+            set browser_id brave
+        case chromium-browser
+            set browser_id chromium
+        case google-chrome google-chrome-stable chrome
+            set browser_id chrome
+        case vivaldi-stable
+            set browser_id vivaldi
+    end
+
+    set -l url_parts (string match -r '^https?://([^/?#]+)([^?#]*)' -- "$url")
+    if test (count $url_parts) -lt 3
+        return 1
+    end
+
+    set -l authority (string replace -r '^.*@' '' -- "$url_parts[2]")
+    set -l host (string replace -r ':[0-9]+$' '' -- "$authority" | string lower)
+    set -l url_path "$url_parts[3]"
+    test -n "$url_path"; or set url_path /
+
+    set -l app_name (string join '' -- "$host" _ "$url_path")
+    set app_name (string replace -a / _ -- "$app_name")
+    printf '%s-%s-Default\n' "$browser_id" "$app_name"
+end
+
 function __webapp_id --argument-names name
     string lower -- "$name" |
         string replace -ar '[^a-z0-9._-]+' - |
@@ -242,10 +273,13 @@ function __webapp_records
         test -f "$desktop_file"; or continue
         command grep -qx 'X-Fish-WebApp=true' "$desktop_file"; or continue
 
-        set -l id (path basename "$desktop_file" | string replace -r '\.desktop$' '')
+        set -l desktop_id (path basename "$desktop_file" | string replace -r '\.desktop$' '')
+        set -l id (string match -r '^X-Fish-WebApp-ID=.*' <"$desktop_file" |
+            string replace -r '^X-Fish-WebApp-ID=' '')
+        test -n "$id"; or set id "$desktop_id"
         set -l name (string match -r '^Name=.*' <"$desktop_file" | string replace -r '^Name=' '')
         set -l url (string match -r '^X-WebApp-URL=.*' <"$desktop_file" | string replace -r '^X-WebApp-URL=' '')
-        printf '%s\t%s\t%s\n' "$id" "$name" "$url"
+        printf '%s\t%s\t%s\t%s\n' "$id" "$name" "$url" "$desktop_id"
     end
 end
 
@@ -303,16 +337,42 @@ function __webapp_install
     set -l browser (__webapp_browser)
     or return
 
+    set -l startup_wm_class (__webapp_startup_wm_class "$browser" "$url")
+    or begin
+        printf 'webapp: could not derive the browser app ID\n' >&2
+        return 1
+    end
+
     set -l data_home (__webapp_data_home)
     set -l applications_dir "$data_home/applications"
     set -l icons_dir "$applications_dir/icons"
-    set -l desktop_file "$applications_dir/$id.desktop"
+    set -l desktop_file "$applications_dir/$startup_wm_class.desktop"
     command mkdir -p "$icons_dir"
     or return
 
-    if test -e "$desktop_file"; and not set -q _flag_force
-        printf 'webapp: %s already exists; use --force to replace it\n' "$id" >&2
+    set -l existing_desktop_file
+    for record in (__webapp_records)
+        set -l fields (string split \t -- "$record")
+        if test "$fields[1]" = "$id"
+            set existing_desktop_file "$applications_dir/$fields[4].desktop"
+            break
+        end
+    end
+
+    if test -n "$existing_desktop_file"; or test -e "$desktop_file"
+        if not set -q _flag_force
+            printf 'webapp: %s already exists; use --force to replace it\n' "$id" >&2
+            return 1
+        end
+    end
+
+    if test -e "$desktop_file"; and not command grep -qx 'X-Fish-WebApp=true' "$desktop_file"
+        printf 'webapp: refusing to replace unmanaged launcher: %s\n' "$desktop_file" >&2
         return 1
+    end
+
+    if test -n "$existing_desktop_file"; and test "$existing_desktop_file" != "$desktop_file"
+        command rm -f -- "$existing_desktop_file"
     end
 
     if test "$icon_ref" = search
@@ -406,11 +466,13 @@ function __webapp_install
         'Type=Application' \
         "Name=$name" \
         "Comment=Web app for $url" \
-        "Exec=$browser --app=$exec_url" \
+        "Exec=$browser --profile-directory=Default --app=$exec_url" \
         "Icon=$icon_value" \
         'Terminal=false' \
         'Categories=Network;' \
         'StartupNotify=true' \
+        "StartupWMClass=$startup_wm_class" \
+        "X-Fish-WebApp-ID=$id" \
         "X-WebApp-URL=$url" \
         'X-Fish-WebApp=true' >"$desktop_file"
     or return
@@ -487,7 +549,16 @@ function __webapp_remove
     set -l applications_dir (__webapp_data_home)/applications
     set -l icons_dir "$applications_dir/icons"
     for id in $ids
-        set -l desktop_file "$applications_dir/$id.desktop"
+        set -l desktop_id "$id"
+        for record in $records
+            set -l fields (string split \t -- "$record")
+            if test "$fields[1]" = "$id"
+                set desktop_id "$fields[4]"
+                break
+            end
+        end
+
+        set -l desktop_file "$applications_dir/$desktop_id.desktop"
         set -l icon_value
         if test -f "$desktop_file"
             set icon_value (string match -r '^Icon=.*' <"$desktop_file" | string replace -r '^Icon=' '')
