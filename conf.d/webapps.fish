@@ -133,11 +133,30 @@ function __webapp_icon_preview --argument-names slug
         end
     end
 
-    if test -x /usr/share/fzf/fzf-preview.sh
-        /usr/share/fzf/fzf-preview.sh "$preview_file"
-    else if command -q kitten
+    set -l use_kitten false
+    if command -q kitten
+        if set -q KITTY_WINDOW_ID; or set -q GHOSTTY_RESOURCES_DIR
+            set use_kitten true
+        end
+    end
+
+    if test "$use_kitten" = true
+        set -l preview_columns 48
+        set -l preview_lines 24
+        set -q FZF_PREVIEW_COLUMNS; and set preview_columns "$FZF_PREVIEW_COLUMNS"
+        set -q FZF_PREVIEW_LINES; and set preview_lines "$FZF_PREVIEW_LINES"
+
+        set -l image_width (math --scale=0 "min(40, max(1, $preview_columns - 4))")
+        set -l image_height (math --scale=0 "min(20, max(1, $preview_lines - 4), ceil($image_width / 2))")
+        set image_width (math --scale=0 "min($image_width, $image_height * 2)")
+        set -l image_left (math --scale=0 "max(0, floor(($preview_columns - $image_width) / 2))")
+        set -l image_top (math --scale=0 "max(0, floor(($preview_lines - $image_height) / 2))")
+
         kitten icat --clear --transfer-mode=memory --unicode-placeholder \
-            --stdin=no "$preview_file"
+            --stdin=no --place="$image_width"x"$image_height"@"$image_left"x"$image_top" \
+            "$preview_file"
+    else if test -x /usr/share/fzf/fzf-preview.sh
+        /usr/share/fzf/fzf-preview.sh "$preview_file"
     else
         command file --brief -- "$preview_file"
         printf '\nInstall chafa or use Kitty/Ghostty for image previews.\n'
@@ -150,32 +169,58 @@ function __webapp_icon_choose --argument-names query
         return 1
     end
 
+    set query (string lower -- "$query")
+
     set -l catalog (__webapp_icon_catalog)
     or return
 
     set -l preview_command \
         "fish -c '__webapp_icon_preview \"\$argv[1]\"' -- {1}"
+    set -l table_header (printf '%-24s  %-30s  %s' NAME ALIASES CATEGORIES)
     set -l selected (
-        begin
-            printf 'NAME\tALIASES\tCATEGORIES\n'
-            command jq -r '
+        command jq -r '
+                def column($width):
+                    tostring as $text
+                    | if ($text | length) > $width then
+                        $text[0:($width - 1)] + "…"
+                      else
+                        $text + (" " * ($width - ($text | length)))
+                      end;
+
                 to_entries
                 | sort_by(.key)[]
+                | .key as $slug
+                | ((.value.aliases // []) | join(", ")) as $aliases
+                | ((.value.categories // []) | join(", ")) as $categories
                 | [
-                    .key,
-                    ((.value.aliases // []) | join(", ")),
-                    ((.value.categories // []) | join(", "))
+                    $slug,
+                    (($slug | column(24))
+                        + "  " + ($aliases | column(30))
+                        + "  " + $categories)
                   ]
                 | @tsv
-            ' "$catalog"
-        end |
-            fzf --delimiter=\t --with-nth=1,2,3 --query="$query" \
-                --header-lines=1 \
-                --prompt='Icon> ' \
-                --header='Enter: use icon · Esc: use website favicon' \
+            ' "$catalog" |
+            fzf --delimiter=\t --with-nth=2 --query="$query" \
+                --layout=reverse \
+                --border=rounded \
+                --border-label=' Dashboard Icons ' \
+                --border-label-pos=2 \
+                --padding=1 \
+                --no-hscroll \
+                --no-multi \
+                --cycle \
+                --info=inline-right \
+                --prompt='› ' \
+                --input-border=rounded \
+                --input-label=' Search ' \
+                --header="$table_header" \
+                --header-border=bottom \
+                --footer='Enter: select · Esc: use website favicon · Ctrl-P: toggle preview' \
+                --footer-border=line \
                 --preview="$preview_command" \
-                --preview-window='right,50%,border-rounded' \
-                --preview-label='Dashboard Icons'
+                --preview-window='right,38%,border-left' \
+                --preview-label=' Icon preview ' \
+                --bind='ctrl-p:toggle-preview'
     )
     or return
 
