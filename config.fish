@@ -8,6 +8,10 @@ source /usr/share/cachyos-fish-config/conf.d/done.fish
 function fish_greeting
 end
 
+function fish-reload --description 'Reload the Fish configuration'
+    exec fish
+end
+
 # Format man pages with bat.
 set -gx MANROFFOPT "-c"
 set -gx MANPAGER "sh -c 'col -bx | bat -l man -p'"
@@ -76,6 +80,7 @@ alias ls='eza -al --color=always --group-directories-first --icons=always'
 alias la='eza -a --color=always --group-directories-first --icons=always'
 alias ll='eza -l --color=always --group-directories-first --icons=always'
 alias lt='eza -aT --color=always --group-directories-first --icons=always'
+alias tree='eza -aT --git-ignore --color=always --group-directories-first --icons=always'
 function l.
     eza -a | grep -e '^\.'
 end
@@ -86,28 +91,6 @@ alias ...='cd ../..'
 alias ....='cd ../../..'
 alias .....='cd ../../../..'
 alias ......='cd ../../../../..'
-
-# Jump to the projects directory or to a named project within it.
-function z --description 'Jump to a project in ~/Projects'
-    set -l projects_root ~/Projects
-
-    if test (count $argv) -eq 0
-        cd $projects_root
-    else if test (count $argv) -eq 1; and test -d "$projects_root/$argv[1]"
-        cd "$projects_root/$argv[1]"
-    else
-        printf 'z: project not found: %s\n' (string join ' ' -- $argv) >&2
-        return 1
-    end
-end
-
-function __z_complete_projects
-    for project in ~/Projects/*/
-        path basename $project
-    end
-end
-
-complete --command z --no-files --arguments '(__z_complete_projects)'
 
 alias dir='dir --color=auto'
 alias vdir='vdir --color=auto'
