@@ -25,7 +25,16 @@ if test -f ~/.fish_profile
     source ~/.fish_profile
 end
 
-fish_add_path ~/.local/bin ~/.cargo/bin ~/Applications/depot_tools
+# Android SDK settings previously persisted in fish_variables.
+set -gx ANDROID_HOME /opt/android-sdk
+set -gx ANDROID_SDK_ROOT $ANDROID_HOME
+
+fish_add_path \
+    $ANDROID_HOME/emulator \
+    $ANDROID_HOME/cmdline-tools/latest/bin \
+    ~/.local/bin \
+    ~/.cargo/bin \
+    ~/Applications/depot_tools
 
 # Support !! and !$ from oh-my-fish/plugin-bang-bang.
 function __history_previous_command
