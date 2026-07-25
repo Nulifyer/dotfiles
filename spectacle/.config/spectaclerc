@@ -1,0 +1,11 @@
+[Annotations]
+annotationToolType=6
+
+[GuiConfig]
+quitAfterSaveCopyExport=true
+
+[ImageSave]
+translatedScreenshotsFolder=Screenshots
+
+[VideoSave]
+translatedScreencastsFolder=Screencasts

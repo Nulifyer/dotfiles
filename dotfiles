@@ -1,0 +1,432 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+readonly DOTFILES_SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]}")"
+readonly DOTFILES_ROOT="$(
+    cd -- "$(dirname -- "$DOTFILES_SCRIPT_PATH")"
+    pwd -P
+)"
+readonly DOTFILES_TARGET="${DOTFILES_TARGET:-$HOME}"
+readonly -a DOTFILES_PACKAGES=(
+    alacritty
+    bash
+    fish
+    kitty
+    spectacle
+    theme
+    vscode
+    zsh
+)
+readonly KDE_FONT='CaskaydiaMono NF,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0'
+readonly -a KDE_SETTINGS=(
+    'kdeglobals|General|BrowserApplication|brave-browser.desktop'
+    'kdeglobals|General|TerminalApplication|kitty'
+    'kdeglobals|General|TerminalService|kitty.desktop'
+    'kdeglobals|General|XftAntialias|true'
+    'kdeglobals|General|XftHintStyle|hintslight'
+    'kdeglobals|General|XftSubPixel|rgb'
+    "kdeglobals|General|fixed|$KDE_FONT"
+    "kdeglobals|General|font|$KDE_FONT"
+    "kdeglobals|General|menuFont|$KDE_FONT"
+    'kdeglobals|General|smallestReadableFont|CaskaydiaMono NF,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0'
+    "kdeglobals|General|toolBarFont|$KDE_FONT"
+    'kdeglobals|KDE|AnimationDurationFactor|0.25'
+    'kdeglobals|KDE|contrast|4'
+    'kdeglobals|KDE|frameContrast|0.2'
+    "kdeglobals|WM|activeFont|$KDE_FONT"
+    'kdeglobals|KFileDialog Settings|Allow Expansion|false'
+    'kdeglobals|KFileDialog Settings|Automatically select filename extension|true'
+    'kdeglobals|KFileDialog Settings|Breadcrumb Navigation|false'
+    'kdeglobals|KFileDialog Settings|Decoration position|2'
+    'kdeglobals|KFileDialog Settings|Show Full Path|false'
+    'kdeglobals|KFileDialog Settings|Show Inline Previews|true'
+    'kdeglobals|KFileDialog Settings|Show Preview|false'
+    'kdeglobals|KFileDialog Settings|Show Speedbar|true'
+    'kdeglobals|KFileDialog Settings|Show hidden files|false'
+    'kdeglobals|KFileDialog Settings|Sort by|Name'
+    'kdeglobals|KFileDialog Settings|Sort directories first|true'
+    'kdeglobals|KFileDialog Settings|Sort hidden files last|false'
+    'kdeglobals|KFileDialog Settings|Sort reversed|false'
+    'kdeglobals|KFileDialog Settings|View Style|DetailTree'
+    'kdeglobals|PreviewSettings|EnableRemoteFolderThumbnail|false'
+    'kdeglobals|PreviewSettings|MaximumRemoteSize|0'
+    'kwinrc|TabBox|HighlightWindows|false'
+    'kwinrc|TabBox|LayoutName|thumbnail_grid'
+)
+readonly -a KDE_NESTED_SETTINGS=(
+    'powerdevilrc|AC|Display|DimDisplayIdleTimeoutSec|-1'
+    'powerdevilrc|AC|Display|DimDisplayWhenIdle|false'
+    'powerdevilrc|AC|Display|TurnOffDisplayIdleTimeoutSec|-1'
+    'powerdevilrc|AC|Display|TurnOffDisplayWhenIdle|false'
+    'powerdevilrc|AC|SuspendAndShutdown|AutoSuspendAction|0'
+)
+
+usage() {
+    cat <<'EOF'
+Usage: ./dotfiles COMMAND
+
+Commands:
+  link         Create or refresh GNU Stow links
+  apply        Apply settings that cannot safely be linked
+  check        Validate tracked files and the active Stow layout
+  update       Pull with --ff-only, then link, apply, and validate
+  status       Show repository and package status
+  unlink       Remove the managed Stow links
+  help         Show this help
+
+Environment:
+  DOTFILES_TARGET  Override the Stow target (default: $HOME)
+EOF
+}
+
+require_command() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        printf 'dotfiles: required command not found: %s\n' "$1" >&2
+        exit 1
+    fi
+}
+
+kde_theme_state_root() {
+    printf '%s\n' "${XDG_STATE_HOME:-$HOME/.local/state}/nulifyer/theme"
+}
+
+kde_icon_theme() {
+    local variant_file
+    variant_file="$(kde_theme_state_root)/variant"
+    if [[ -r "$variant_file" ]] && [[ "$(<"$variant_file")" == light ]]; then
+        printf '%s\n' breeze
+    else
+        printf '%s\n' breeze-dark
+    fi
+}
+
+kde_write_setting() {
+    local entry=$1
+    local file group key value
+    IFS='|' read -r file group key value <<<"$entry"
+    kwriteconfig6 --file "$file" --group "$group" --key "$key" -- "$value"
+}
+
+kde_write_nested_setting() {
+    local entry=$1
+    local file group subgroup key value
+    IFS='|' read -r file group subgroup key value <<<"$entry"
+    kwriteconfig6 --file "$file" --group "$group" --group "$subgroup" \
+        --key "$key" -- "$value"
+}
+
+apply_kde_settings() {
+    local entry
+    local state_root
+    state_root="$(kde_theme_state_root)"
+
+    if [[ -r "$state_root/kde-scheme" ]]; then
+        plasma-apply-colorscheme "$(<"$state_root/kde-scheme")"
+    else
+        printf 'dotfiles: run `theme NAME` to generate a KDE color scheme\n' \
+            >&2
+    fi
+
+    for entry in "${KDE_SETTINGS[@]}"; do
+        kde_write_setting "$entry"
+    done
+    for entry in "${KDE_NESTED_SETTINGS[@]}"; do
+        kde_write_nested_setting "$entry"
+    done
+    kwriteconfig6 --file kdeglobals --group Icons --key Theme \
+        -- "$(kde_icon_theme)"
+
+    if command -v qdbus6 >/dev/null 2>&1; then
+        qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true
+    fi
+
+    printf 'Applied portable KDE settings and the selected color scheme.\n'
+}
+
+kde_check_value() {
+    local file=$1
+    local group=$2
+    local key=$3
+    local expected=$4
+    local actual
+    actual="$(
+        kreadconfig6 --file "$file" --group "$group" --key "$key" 2>/dev/null
+    )"
+
+    if [[ "$actual" != "$expected" ]]; then
+        printf 'dotfiles: KDE drift: %s [%s] %s = %q; expected %q\n' \
+            "$file" "$group" "$key" "$actual" "$expected" >&2
+        return 1
+    fi
+}
+
+kde_check_nested_value() {
+    local file=$1
+    local group=$2
+    local subgroup=$3
+    local key=$4
+    local expected=$5
+    local actual
+    actual="$(
+        kreadconfig6 --file "$file" --group "$group" --group "$subgroup" \
+            --key "$key" 2>/dev/null
+    )"
+
+    if [[ "$actual" != "$expected" ]]; then
+        printf 'dotfiles: KDE drift: %s [%s][%s] %s = %q; expected %q\n' \
+            "$file" "$group" "$subgroup" "$key" "$actual" "$expected" >&2
+        return 1
+    fi
+}
+
+check_kde_settings() {
+    command -v kreadconfig6 >/dev/null 2>&1 || return
+
+    local entry file group subgroup key expected
+    local failed=false
+    local state_root
+    state_root="$(kde_theme_state_root)"
+
+    for entry in "${KDE_SETTINGS[@]}"; do
+        IFS='|' read -r file group key expected <<<"$entry"
+        kde_check_value "$file" "$group" "$key" "$expected" || failed=true
+    done
+    for entry in "${KDE_NESTED_SETTINGS[@]}"; do
+        IFS='|' read -r file group subgroup key expected <<<"$entry"
+        kde_check_nested_value \
+            "$file" "$group" "$subgroup" "$key" "$expected" || failed=true
+    done
+    kde_check_value kdeglobals Icons Theme "$(kde_icon_theme)" || failed=true
+
+    if [[ ! -r "$state_root/kde-scheme" ]]; then
+        printf 'dotfiles: generated KDE scheme state is missing\n' >&2
+        failed=true
+    else
+        kde_check_value kdeglobals General ColorScheme \
+            "$(<"$state_root/kde-scheme")" || failed=true
+    fi
+
+    [[ "$failed" == false ]]
+}
+
+link_packages() {
+    require_command stow
+    printf 'Linking dotfile packages into %s...\n' "$DOTFILES_TARGET"
+    stow \
+        --dir="$DOTFILES_ROOT" \
+        --target="$DOTFILES_TARGET" \
+        --no-folding \
+        --restow \
+        "${DOTFILES_PACKAGES[@]}"
+}
+
+unlink_packages() {
+    require_command stow
+    printf 'Removing managed links from %s...\n' "$DOTFILES_TARGET"
+    stow \
+        --dir="$DOTFILES_ROOT" \
+        --target="$DOTFILES_TARGET" \
+        --no-folding \
+        --delete \
+        "${DOTFILES_PACKAGES[@]}"
+}
+
+apply_settings() {
+    if command -v fish >/dev/null 2>&1 &&
+        [[ -r "$DOTFILES_TARGET/.config/fish/conf.d/theme.fish" ]]; then
+        fish -c 'theme --reload'
+    else
+        printf 'Skipping shared theme: Fish or the theme function is unavailable.\n'
+    fi
+
+    if command -v kwriteconfig6 >/dev/null 2>&1 &&
+        command -v plasma-apply-colorscheme >/dev/null 2>&1; then
+        apply_kde_settings
+    else
+        printf 'Skipping KDE settings: Plasma configuration tools are unavailable.\n'
+    fi
+}
+
+check_json() {
+    require_command jq
+
+    local json_file
+    local -a json_files=(
+        "$DOTFILES_ROOT/theme/.config/nulifyer/themes/colors.json"
+        "$DOTFILES_ROOT/theme/.config/nulifyer/theme/vscode/package.json"
+        "$DOTFILES_ROOT/theme/.config/nulifyer/theme/vscode/workbench.json"
+        "$DOTFILES_ROOT/theme/.config/nulifyer/theme/vscode/tokens.json"
+        "$DOTFILES_ROOT/theme/.config/nulifyer/theme/vscode/semantic.json"
+        "$DOTFILES_ROOT/vscode/.config/Code/User/settings.json"
+    )
+
+    for json_file in "${json_files[@]}"; do
+        jq -e . "$json_file" >/dev/null
+    done
+
+    jq -e '
+        length > 0 and
+        all(.[]; (.variant == "dark" or .variant == "light") and
+            (.prompt | keys | length) == 7 and
+            (.terminal.normal | keys | length) == 8 and
+            (.terminal.bright | keys | length) == 8)
+    ' "$DOTFILES_ROOT/theme/.config/nulifyer/themes/colors.json" >/dev/null
+    jq -e 'length == 422' \
+        "$DOTFILES_ROOT/theme/.config/nulifyer/theme/vscode/workbench.json" \
+        >/dev/null
+    jq -e 'length == 790' \
+        "$DOTFILES_ROOT/theme/.config/nulifyer/theme/vscode/tokens.json" \
+        >/dev/null
+    jq -e 'length == 62' \
+        "$DOTFILES_ROOT/theme/.config/nulifyer/theme/vscode/semantic.json" \
+        >/dev/null
+}
+
+check_shell() {
+    bash -n \
+        "$DOTFILES_ROOT/dotfiles" \
+        "$DOTFILES_ROOT/bash/.bashrc" \
+        "$DOTFILES_ROOT/bash/.bash_profile"
+
+    fish -n \
+        "$DOTFILES_ROOT/fish/.config/fish/config.fish" \
+        "$DOTFILES_ROOT/fish/.config/fish/conf.d/"*.fish
+
+    if command -v zsh >/dev/null 2>&1; then
+        zsh -n "$DOTFILES_ROOT/zsh/.zshrc"
+    fi
+
+    python3 -c 'import pathlib; compile(pathlib.Path("'"$DOTFILES_ROOT/theme/.config/nulifyer/theme/render.py"'").read_text(), "render.py", "exec")'
+}
+
+check_toml() {
+    python3 -c '
+import pathlib
+import tomllib
+
+for name in (
+    "'"$DOTFILES_ROOT/alacritty/.config/alacritty/alacritty.toml"'",
+    "'"${XDG_STATE_HOME:-$HOME/.local/state}/nulifyer/theme/alacritty.toml"'",
+):
+    with pathlib.Path(name).open("rb") as stream:
+        tomllib.load(stream)
+'
+}
+
+check_package_layout() {
+    local directory expected package
+    local known
+
+    for directory in "$DOTFILES_ROOT"/*/; do
+        package="${directory%/}"
+        package="${package##*/}"
+        known=false
+
+        for expected in "${DOTFILES_PACKAGES[@]}"; do
+            if [[ "$package" == "$expected" ]]; then
+                known=true
+                break
+            fi
+        done
+
+        if [[ "$known" != true ]]; then
+            printf 'dotfiles: visible directory is not a Stow package: %s\n' \
+                "$package" >&2
+            return 1
+        fi
+    done
+}
+
+check_stow() {
+    require_command stow
+    stow \
+        --dir="$DOTFILES_ROOT" \
+        --target="$DOTFILES_TARGET" \
+        --no-folding \
+        --simulate \
+        "${DOTFILES_PACKAGES[@]}"
+}
+
+check_active_settings() {
+    if command -v code >/dev/null 2>&1; then
+        code --list-extensions --show-versions 2>/dev/null |
+            grep -q '^nulifyer\.nulifyer-theme@1\.2\.0$'
+    fi
+
+    check_kde_settings
+}
+
+check_all() {
+    printf 'Validating dotfiles...\n'
+    git -C "$DOTFILES_ROOT" diff --check
+    check_json
+    check_shell
+    check_toml
+    check_package_layout
+    check_stow
+    check_active_settings
+    printf 'All local checks passed.\n'
+}
+
+show_status() {
+    printf 'Repository: %s\n' "$DOTFILES_ROOT"
+    printf 'Target:     %s\n' "$DOTFILES_TARGET"
+    printf 'Packages:   %s\n' "${DOTFILES_PACKAGES[*]}"
+    printf '\nGit status:\n'
+    git -C "$DOTFILES_ROOT" status --short
+    printf '\nConfigured MCP servers:\n'
+    if command -v codex >/dev/null 2>&1; then
+        codex mcp list
+    else
+        printf 'Codex is not installed.\n'
+    fi
+}
+
+update_all() {
+    git -C "$DOTFILES_ROOT" pull --ff-only
+    link_packages
+    apply_settings
+    check_all
+}
+
+main() {
+    local command_name="${1:-help}"
+
+    if [[ "$#" -gt 1 ]]; then
+        printf 'dotfiles: unexpected argument: %s\n' "$2" >&2
+        usage >&2
+        return 2
+    fi
+
+    case "$command_name" in
+        link)
+            link_packages
+            ;;
+        apply)
+            apply_settings
+            ;;
+        check)
+            check_all
+            ;;
+        update)
+            update_all
+            ;;
+        status)
+            show_status
+            ;;
+        unlink)
+            unlink_packages
+            ;;
+        help | -h | --help)
+            usage
+            ;;
+        *)
+            printf 'dotfiles: unknown command: %s\n' "$command_name" >&2
+            usage >&2
+            return 2
+            ;;
+    esac
+}
+
+main "$@"

@@ -1,0 +1,126 @@
+{
+  "[css]": {
+    "editor.defaultFormatter": "vscode.css-language-features"
+  },
+  "[dockercompose]": {
+    "editor.defaultFormatter": "redhat.vscode-yaml"
+  },
+  "[html]": {
+    "editor.defaultFormatter": "vscode.html-language-features"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[odin]": {},
+  "[python]": {
+    "editor.formatOnType": true
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[yaml]": {
+    "editor.defaultFormatter": "redhat.vscode-yaml"
+  },
+  "chat.agent.enabled": false,
+  "chat.commandCenter.enabled": false,
+  "chat.disableAIFeatures": true,
+  "chat.viewSessions.orientation": "stacked",
+  "csharp.inlayHints.enableInlayHintsForImplicitObjectCreation": true,
+  "csharp.inlayHints.enableInlayHintsForImplicitVariableTypes": true,
+  "csharp.inlayHints.enableInlayHintsForLambdaParameterTypes": true,
+  "csharp.inlayHints.enableInlayHintsForTypes": true,
+  "debug.allowBreakpointsEverywhere": true,
+  "debug.console.collapseIdenticalLines": false,
+  "debug.terminal.clearBeforeReusing": true,
+  "diffEditor.ignoreTrimWhitespace": true,
+  "docker.extension.dockerEngineAvailabilityPrompt": false,
+  "docker.extension.enableComposeLanguageServer": false,
+  "dotnet.formatting.organizeImportsOnFormat": true,
+  "dotnet.inlayHints.enableInlayHintsForIndexerParameters": true,
+  "dotnet.inlayHints.enableInlayHintsForLiteralParameters": true,
+  "dotnet.inlayHints.enableInlayHintsForObjectCreationParameters": true,
+  "dotnet.inlayHints.enableInlayHintsForOtherParameters": true,
+  "dotnet.inlayHints.enableInlayHintsForParameters": true,
+  "editor.accessibilitySupport": "off",
+  "editor.fontFamily": "'CaskaydiaMono NF', monospace",
+  "editor.minimap.enabled": false,
+  "editor.renderControlCharacters": false,
+  "editor.semanticHighlighting.enabled": true,
+  "editor.suggestSelection": "first",
+  "extensions.ignoreRecommendations": true,
+  "git.autofetch": true,
+  "go.toolsManagement.autoUpdate": true,
+  "json.schemaDownload.trustedDomains": {
+    "https://aka.ms": true,
+    "https://developer.microsoft.com/json-schemas/": true,
+    "https://json-schema.org/": true,
+    "https://json.schemastore.org/": true,
+    "https://raw.githubusercontent.com/devcontainers/spec/": true,
+    "https://raw.githubusercontent.com/microsoft/vscode/": true,
+    "https://schemastore.azurewebsites.net/": true,
+    "https://www.schemastore.org/": true
+  },
+  "jupyter.askForKernelRestart": false,
+  "notebook.cellToolbarLocation": {
+    "default": "right",
+    "jupyter-notebook": "left"
+  },
+  "notebook.lineNumbers": "on",
+  "python.analysis.typeCheckingMode": "standard",
+  "redhat.telemetry.enabled": false,
+  "scm.defaultViewMode": "tree",
+  "settingsSync.ignoredSettings": [
+    "terminal.integrated.sendKeybindingsToShell"
+  ],
+  "terminal.integrated.allowChords": false,
+  "terminal.integrated.defaultProfile.linux": "fish",
+  "terminal.integrated.enablePersistentSessions": false,
+  "terminal.integrated.fontFamily": "CaskaydiaMono NF",
+  "terminal.integrated.initialHint": false,
+  "terminal.integrated.profiles.linux": {
+    "fish": {
+      "path": "fish",
+      "icon": "terminal"
+    },
+    "bash": {
+      "path": "bash",
+      "icon": "terminal-bash"
+    },
+    "zsh": {
+      "path": "zsh",
+      "icon": "terminal"
+    }
+  },
+  "terminal.integrated.sendKeybindingsToShell": false,
+  "terminal.integrated.shellIntegration.enabled": false,
+  "terminal.integrated.stickyScroll.enabled": false,
+  "vsicons.dontShowNewVersionMessage": true,
+  "window.commandCenter": false,
+  "workbench.activityBar.location": "top",
+  "workbench.colorTheme": "Nulifyer",
+  "workbench.editor.empty.hint": "hidden",
+  "workbench.editorAssociations": {
+    "*.ipynb": "jupyter-notebook"
+  },
+  "workbench.iconTheme": "vscode-icons",
+  "workbench.layoutControl.enabled": false,
+  "workbench.settings.applyToAllProfiles": [
+    "editor.fontFamily"
+  ],
+  "workbench.startupEditor": "none",
+  "xml.format.maxLineWidth": 0,
+  "xml.server.preferBinary": true,
+  "zig.zls.enabled": "on",
+  "zig.zls.inlayHintsShowParameterName": false,
+  "zig.zls.warnStyle": true,
+  "git.confirmSync": false
+}

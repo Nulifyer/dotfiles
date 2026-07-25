@@ -2,7 +2,9 @@
 # Kept here so local behavior does not change when the distro config changes.
 
 # Desktop notification support for long-running commands.
-source /usr/share/cachyos-fish-config/conf.d/done.fish
+if test -r /usr/share/cachyos-fish-config/conf.d/done.fish
+    source /usr/share/cachyos-fish-config/conf.d/done.fish
+end
 
 # No startup banner or fastfetch greeting.
 function fish_greeting
@@ -85,13 +87,26 @@ function copy
 end
 
 # Listings.
-alias ls='eza -al --color=always --group-directories-first --icons=always'
-alias la='eza -a --color=always --group-directories-first --icons=always'
-alias ll='eza -l --color=always --group-directories-first --icons=always'
-alias lt='eza -aT --color=always --group-directories-first --icons=always'
-alias tree='eza -aT --git-ignore --color=always --group-directories-first --icons=always'
-function l.
-    eza -a | grep -e '^\.'
+if type -q eza
+    alias ls='eza -al --color=always --group-directories-first --icons=always'
+    alias la='eza -a --color=always --group-directories-first --icons=always'
+    alias ll='eza -l --color=always --group-directories-first --icons=always'
+    alias lt='eza -aT --color=always --group-directories-first --icons=always'
+    alias tree='eza -aT --git-ignore --color=always --group-directories-first --icons=always'
+
+    function l.
+        eza -a | grep -e '^\.'
+    end
+else
+    alias ls='ls -al --color=auto --group-directories-first'
+    alias la='ls -A --color=auto --group-directories-first'
+    alias ll='ls -l --color=auto --group-directories-first'
+    alias lt='ls -al --color=auto --group-directories-first'
+    alias tree='find . -print'
+
+    function l.
+        command ls -A | string match -r '^\..+'
+    end
 end
 
 # Navigation and common utilities.
@@ -124,68 +139,3 @@ alias rip="expac --timefmt='%Y-%m-%d %T' '%l\t%n %v' | sort | tail -200 | nl"
 alias apt='man pacman'
 alias apt-get='man pacman'
 alias tb='nc termbin.com 9999'
-
-# Gruvbox syntax colors mirrored from the VS Code terminal palette.
-set -g fish_color_normal DDC7A1
-set -g fish_color_command D8A657
-set -g fish_color_keyword EA6962
-set -g fish_color_quote A9B665
-set -g fish_color_redirection 7DAEA3
-set -g fish_color_end EA6962
-set -g fish_color_error EA6962
-set -g fish_color_param DDC7A1
-set -g fish_color_comment 746A62
-set -g fish_color_selection --background=2A2827
-set -g fish_color_search_match --background=3B3B3B
-set -g fish_color_operator EA6962
-set -g fish_color_escape EA6962
-set -g fish_color_autosuggestion 746A62
-set -g fish_color_cwd D3869B
-set -g fish_color_user 7DAEA3
-set -g fish_color_host 7DAEA3
-set -g fish_pager_color_progress D8A657
-set -g fish_pager_color_prefix A9B665
-set -g fish_pager_color_completion DDC7A1
-set -g fish_pager_color_description 746A62
-set -g fish_pager_color_selected_background --background=2A2827
-
-# Match the PowerShell profile's compact, transient prompt.
-set -g fish_transient_prompt 1
-
-function fish_mode_prompt
-end
-
-function fish_prompt
-    if contains -- --final-rendering $argv
-        set_color 746A62
-        printf '\uf105 '
-        set_color normal
-        return
-    end
-
-    # Arch/CachyOS icon.
-    set_color 746A62
-    printf '\uf303 '
-
-    # user@host
-    set_color D8A657
-    printf '%s@%s ' (whoami) (prompt_hostname)
-
-    # Fish abbreviates intermediate path components like the PowerShell prompt.
-    set_color E78A4E
-    printf '%s ' (prompt_pwd)
-
-    # Current Git branch or detached commit.
-    set -l branch (command git symbolic-ref --quiet --short HEAD 2>/dev/null)
-    if test -z "$branch"
-        set branch (command git rev-parse --short HEAD 2>/dev/null)
-    end
-    if test -n "$branch"
-        set_color A9B665
-        printf '\ue725 %s ' $branch
-    end
-
-    set_color 746A62
-    printf '\uf105 '
-    set_color normal
-end
