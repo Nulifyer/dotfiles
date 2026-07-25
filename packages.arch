@@ -1,0 +1,24 @@
+# Packages required by the repository task runner and validation.
+required bash
+required git
+required jq
+required python
+required stow
+
+# Applications or platform components with managed configuration.
+managed alacritty
+managed fish
+managed kconfig
+managed kitty
+managed plasma-workspace
+managed spectacle
+managed ttf-cascadia-mono-nerd
+managed visual-studio-code-bin
+managed zsh
+
+# Enhancements used when installed.
+optional bat
+optional chafa
+optional curl
+optional eza
+optional fzf

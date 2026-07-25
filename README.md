@@ -7,10 +7,10 @@ Linux configuration managed with Git and GNU Stow.
 - `alacritty` contains the Alacritty terminal configuration.
 - `bash` contains a Bash-native setup with Bash history, completion, and prompt.
 - `fish` contains self-contained Fish features under `conf.d`.
+- `kde` contains locally generated KDE color schemes.
 - `kitty` contains the Kitty terminal configuration.
 - `spectacle` contains stable Spectacle preferences.
-- `theme` contains the shared 40-theme catalog and cross-application renderer.
-- `vscode` contains cleaned VS Code settings; the Nulifyer theme is generated.
+- `vscode` contains VS Code settings and a locally generated Nulifyer extension.
 - `zsh` contains a Zsh-native setup using Zsh completion, path arrays, and
   `vcs_info`.
 
@@ -19,6 +19,8 @@ Linux configuration managed with Git and GNU Stow.
 Run the repository-local task script:
 
 ```sh
+./dotfiles doctor
+./dotfiles theme gruvbox
 ./dotfiles link
 ./dotfiles apply
 ./dotfiles check
@@ -30,7 +32,9 @@ repository. It is a small Bash dispatcher, so Make is not required.
 ```text
 ./dotfiles link         Create or refresh Stow links
 ./dotfiles apply        Apply KDE and other non-linkable settings
-./dotfiles check        Run local validation
+./dotfiles theme NAME   Regenerate local theme files from colors.json
+./dotfiles check        Validate files, generated output, links, and active state
+./dotfiles doctor       Report required and optional dependencies
 ./dotfiles update       Pull, link, apply, and validate
 ./dotfiles status       Show repository and package status
 ./dotfiles unlink       Remove managed links
@@ -40,23 +44,40 @@ Preview the complete Stow layout without modifying the filesystem:
 
 ```sh
 stow --simulate --verbose --target="$HOME" --no-folding \
-    alacritty bash fish kitty spectacle theme vscode zsh
+    alacritty bash fish kde kitty spectacle vscode zsh
 ```
 
 Remove the managed links:
 
 ```sh
 stow --delete --target="$HOME" --no-folding \
-    alacritty bash fish kitty spectacle theme vscode zsh
+    alacritty bash fish kde kitty spectacle vscode zsh
 ```
 
 Fish's generated `fish_variables` file remains local and is not tracked.
+
+## Dependencies
+
+`packages.arch` is the auditable Arch package manifest. Entries are classified
+as:
+
+- `required`: needed by the repository task runner or validation
+- `managed`: applications and platform components with tracked configuration
+- `optional`: enhancements used when installed
+
+Run `./dotfiles doctor` to report missing commands and Arch packages. Missing
+required dependencies fail the command. `./dotfiles doctor --strict` also fails
+for missing managed and optional packages. On another distribution, command
+checks still run and the Arch package portion is skipped.
 
 ## Repository internals
 
 Layer-one directories without a leading dot are Stow packages. Any future
 repository-only directory must use a leading dot and is never passed to Stow.
-The repository currently has no non-Stow implementation directory.
+`.theme` contains the renderer and VS Code role templates. The root
+`colors.json` catalog and `packages.arch` manifest are repository inputs rather
+than Stow packages. Generated palette files are ignored by Git and must be
+created locally with `./dotfiles theme NAME`.
 
 ## KDE
 
@@ -71,31 +92,44 @@ state lives directly in `./dotfiles`: `apply` writes the managed keys and
 
 ## Shared themes
 
-The tracked `theme/.config/nulifyer/themes/colors.json` catalog is the local
-source of truth and currently contains 40 themes. Apply one by its catalog key:
+The tracked root `colors.json` catalog is the local source of truth and
+currently contains 40 themes. Generate one by its catalog key:
 
-```fish
-theme gruvbox
-theme catppuccin_latte
+```sh
+./dotfiles theme gruvbox
+./dotfiles theme catppuccin_latte
 ```
 
-The command has catalog-backed Fish completions. Run `theme` without arguments
-for an `fzf` picker, or use the inspection commands:
+Run the command without a name for an `fzf` picker, or use the inspection
+commands:
 
-```fish
-theme --list
-theme --current
-theme --reload
+```sh
+./dotfiles theme --list
+./dotfiles theme --current
+./dotfiles theme --reload
 ```
 
-One selection generates Fish, Bash, Zsh, Kitty, Alacritty, KDE, and VS Code
-colors from the same palette. Fish and KDE update immediately; Kitty and
-Alacritty watch generated color includes; new Bash and Zsh sessions load the
-selected prompt colors. The active VS Code extension is generated in
-`~/.vscode/extensions`.
+One selection locally generates Fish, Bash, Zsh, Kitty, Alacritty, KDE, and VS
+Code files from the same palette. Each generated file lives in its owning Stow
+package and is ignored by Git. Repository-local selection state lives under
+`.theme/local`. The catalog, renderer, templates, and application
+configurations remain visible in repository diffs.
 
-Generated files live under `~/.local/state/nulifyer/theme`,
-`~/.local/share/color-schemes`, and the VS Code extensions directory. They are
-deliberately outside the Stow packages, so changing themes does not dirty the
-repository. `./dotfiles apply` regenerates the current selection, with
-`gruvbox` as the initial default.
+Generated output is organized by owner:
+
+- `alacritty/.config/alacritty/theme.generated.toml`
+- `bash/.config/bash/theme.generated.sh`
+- `fish/.config/fish/themes/current.fish`
+- `kde/.local/share/color-schemes`
+- `kitty/.config/kitty/theme.generated.conf`
+- `vscode/.vscode/extensions/nulifyer.nulifyer-theme-1.2.0`
+- `zsh/.config/zsh/theme.generated.zsh`
+
+`link` and `check` require current generated output and report how to create it
+when it is missing. `update` regenerates the locally selected theme after
+pulling.
+
+When the packages are already linked, Kitty and Alacritty watch their generated
+includes and KDE is reapplied immediately. New Bash and Zsh sessions load the
+selected prompt colors. VS Code may require a window reload after its stowed
+extension changes.

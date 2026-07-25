@@ -2,7 +2,7 @@
   "name": "nulifyer-theme",
   "displayName": "Nulifyer",
   "publisher": "nulifyer",
-  "description": "Theme generated from Nulifyer's shared colors catalog",
+  "description": "Theme generated from the tracked shared color catalog",
   "version": "1.2.0",
   "engines": {
     "vscode": "^1.60.0"

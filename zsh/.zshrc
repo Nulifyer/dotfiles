@@ -9,12 +9,12 @@ if (( $+commands[bat] )); then
     export MANPAGER="sh -c 'col -bx | bat -l man -p'"
 fi
 
-theme_state="${XDG_STATE_HOME:-$HOME/.local/state}/nulifyer/theme"
-if [[ -r $theme_state/shell.sh ]]; then
-    # Generated prompt colors and optional BAT/LUTGEN theme values.
-    source "$theme_state/shell.sh"
+theme_file="${XDG_CONFIG_HOME:-$HOME/.config}/zsh/theme.generated.zsh"
+if [[ -r $theme_file ]]; then
+    # Locally generated prompt colors and optional BAT/LUTGEN theme values.
+    source "$theme_file"
 fi
-unset theme_state
+unset theme_file
 
 export ANDROID_HOME="${ANDROID_HOME:-/opt/android-sdk}"
 export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"

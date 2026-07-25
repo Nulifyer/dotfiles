@@ -2,7 +2,7 @@
 # the shared `theme` command.
 
 [general]
-import = ["~/.local/state/nulifyer/theme/alacritty.toml"]
+import = ["~/.config/alacritty/theme.generated.toml"]
 live_config_reload = true
 
 [env]

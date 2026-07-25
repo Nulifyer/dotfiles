@@ -12,12 +12,15 @@ readonly -a DOTFILES_PACKAGES=(
     alacritty
     bash
     fish
+    kde
     kitty
     spectacle
-    theme
     vscode
     zsh
 )
+readonly THEME_CATALOG="$DOTFILES_ROOT/colors.json"
+readonly THEME_RENDERER="$DOTFILES_ROOT/.theme/render.py"
+readonly THEME_LOCAL_STATE="$DOTFILES_ROOT/.theme/local"
 readonly KDE_FONT='CaskaydiaMono NF,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0'
 readonly -a KDE_SETTINGS=(
     'kdeglobals|General|BrowserApplication|brave-browser.desktop'
@@ -69,7 +72,9 @@ Usage: ./dotfiles COMMAND
 Commands:
   link         Create or refresh GNU Stow links
   apply        Apply settings that cannot safely be linked
-  check        Validate tracked files and the active Stow layout
+  theme        Generate local theme files from colors.json
+  check        Validate source files, generated files, and installed links
+  doctor       Report required and optional setup dependencies
   update       Pull with --ff-only, then link, apply, and validate
   status       Show repository and package status
   unlink       Remove the managed Stow links
@@ -87,13 +92,83 @@ require_command() {
     fi
 }
 
-kde_theme_state_root() {
-    printf '%s\n' "${XDG_STATE_HOME:-$HOME/.local/state}/nulifyer/theme"
+doctor_command() {
+    local strict=false
+    if [[ "${1-}" == --strict ]]; then
+        strict=true
+        shift
+    fi
+    if [[ "$#" -ne 0 ]]; then
+        printf 'Usage: ./dotfiles doctor [--strict]\n' >&2
+        return 2
+    fi
+
+    local missing_required=false
+    local missing_any=false
+    local class package
+    local -a command_specs=(
+        'required|bash'
+        'required|git'
+        'required|jq'
+        'required|python3'
+        'required|stow'
+        'managed|alacritty'
+        'managed|fish'
+        'managed|kitty'
+        'managed|kwriteconfig6'
+        'managed|spectacle'
+        'managed|code'
+        'managed|zsh'
+        'optional|bat'
+        'optional|chafa'
+        'optional|curl'
+        'optional|eza'
+        'optional|fzf'
+    )
+
+    printf 'Commands:\n'
+    local spec command_name
+    for spec in "${command_specs[@]}"; do
+        IFS='|' read -r class command_name <<<"$spec"
+        if command -v "$command_name" >/dev/null 2>&1; then
+            printf '  ok       %-8s %s\n' "$class" "$command_name"
+        else
+            printf '  missing  %-8s %s\n' "$class" "$command_name"
+            missing_any=true
+            [[ "$class" == required ]] && missing_required=true
+        fi
+    done
+
+    if command -v pacman >/dev/null 2>&1; then
+        printf '\nArch packages:\n'
+        while read -r class package; do
+            [[ -n "${class:-}" ]] || continue
+            [[ "$class" == \#* ]] && continue
+            if pacman -T "$package" >/dev/null 2>&1; then
+                printf '  ok       %-8s %s\n' "$class" "$package"
+            else
+                printf '  missing  %-8s %s\n' "$class" "$package"
+                missing_any=true
+                [[ "$class" == required ]] && missing_required=true
+            fi
+        done <"$DOTFILES_ROOT/packages.arch"
+    else
+        printf '\nArch package checks skipped: pacman is unavailable.\n'
+    fi
+
+    if [[ "$missing_required" == true ]] ||
+        [[ "$strict" == true && "$missing_any" == true ]]; then
+        return 1
+    fi
+}
+
+kde_theme_root() {
+    printf '%s\n' "$THEME_LOCAL_STATE"
 }
 
 kde_icon_theme() {
     local variant_file
-    variant_file="$(kde_theme_state_root)/variant"
+    variant_file="$(kde_theme_root)/variant"
     if [[ -r "$variant_file" ]] && [[ "$(<"$variant_file")" == light ]]; then
         printf '%s\n' breeze
     else
@@ -116,17 +191,42 @@ kde_write_nested_setting() {
         --key "$key" -- "$value"
 }
 
+kde_scheme_path() {
+    local scheme
+    IFS= read -r scheme <"$(kde_theme_root)/kde-scheme"
+    printf '%s/color-schemes/%s.colors\n' \
+        "${XDG_DATA_HOME:-$HOME/.local/share}" "$scheme"
+}
+
+kde_apply_color_scheme() {
+    local scheme_file
+    scheme_file="$(kde_scheme_path)"
+    if [[ ! -r "$scheme_file" ]]; then
+        printf 'dotfiles: linked KDE color scheme is missing: %s\n' \
+            "$scheme_file" >&2
+        return 1
+    fi
+
+    local group=''
+    local line key value
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^\[(.+)\]$ ]]; then
+            group="${BASH_REMATCH[1]}"
+        elif [[ -n "$group" && "$line" == *=* ]]; then
+            key="${line%%=*}"
+            value="${line#*=}"
+            if [[ "$group" == General && "$key" == Name ]]; then
+                continue
+            fi
+            kwriteconfig6 --file kdeglobals --group "$group" \
+                --key "$key" -- "$value"
+        fi
+    done <"$scheme_file"
+}
+
 apply_kde_settings() {
     local entry
-    local state_root
-    state_root="$(kde_theme_state_root)"
-
-    if [[ -r "$state_root/kde-scheme" ]]; then
-        plasma-apply-colorscheme "$(<"$state_root/kde-scheme")"
-    else
-        printf 'dotfiles: run `theme NAME` to generate a KDE color scheme\n' \
-            >&2
-    fi
+    kde_apply_color_scheme
 
     for entry in "${KDE_SETTINGS[@]}"; do
         kde_write_setting "$entry"
@@ -180,13 +280,27 @@ kde_check_nested_value() {
     fi
 }
 
+kde_check_color_scheme() {
+    local scheme_file
+    scheme_file="$(kde_scheme_path)"
+    if [[ ! -r "$scheme_file" ]]; then
+        printf 'dotfiles: linked KDE color scheme is missing: %s\n' \
+            "$scheme_file" >&2
+        return 1
+    fi
+
+    python3 "$DOTFILES_ROOT/.theme/check_kde.py" \
+        "$scheme_file" \
+        "${XDG_CONFIG_HOME:-$HOME/.config}/kdeglobals"
+}
+
 check_kde_settings() {
     command -v kreadconfig6 >/dev/null 2>&1 || return
 
     local entry file group subgroup key expected
     local failed=false
     local state_root
-    state_root="$(kde_theme_state_root)"
+    state_root="$(kde_theme_root)"
 
     for entry in "${KDE_SETTINGS[@]}"; do
         IFS='|' read -r file group key expected <<<"$entry"
@@ -203,8 +317,7 @@ check_kde_settings() {
         printf 'dotfiles: generated KDE scheme state is missing\n' >&2
         failed=true
     else
-        kde_check_value kdeglobals General ColorScheme \
-            "$(<"$state_root/kde-scheme")" || failed=true
+        kde_check_color_scheme || failed=true
     fi
 
     [[ "$failed" == false ]]
@@ -212,6 +325,7 @@ check_kde_settings() {
 
 link_packages() {
     require_command stow
+    require_generated_theme
     printf 'Linking dotfile packages into %s...\n' "$DOTFILES_TARGET"
     stow \
         --dir="$DOTFILES_ROOT" \
@@ -232,16 +346,130 @@ unlink_packages() {
         "${DOTFILES_PACKAGES[@]}"
 }
 
-apply_settings() {
-    if command -v fish >/dev/null 2>&1 &&
-        [[ -r "$DOTFILES_TARGET/.config/fish/conf.d/theme.fish" ]]; then
-        fish -c 'theme --reload'
+link_matches() {
+    local source=$1
+    local target=$2
+    [[ -L "$target" ]] &&
+        [[ "$(readlink -f -- "$target")" == "$(readlink -f -- "$source")" ]]
+}
+
+theme_current() {
+    local current_file="$THEME_LOCAL_STATE/current"
+    if [[ -r "$current_file" ]]; then
+        local current
+        IFS= read -r current <"$current_file"
+        printf '%s\n' "$current"
     else
-        printf 'Skipping shared theme: Fish or the theme function is unavailable.\n'
+        printf '%s\n' gruvbox
+    fi
+}
+
+require_generated_theme() {
+    local current_file="$THEME_LOCAL_STATE/current"
+    if [[ ! -r "$current_file" ]]; then
+        printf 'dotfiles: local theme output is missing\n' >&2
+        printf 'Run `./dotfiles theme NAME` before linking or checking.\n' >&2
+        return 1
     fi
 
-    if command -v kwriteconfig6 >/dev/null 2>&1 &&
-        command -v plasma-apply-colorscheme >/dev/null 2>&1; then
+    local current
+    current="$(theme_current)"
+    "$THEME_RENDERER" --check "$DOTFILES_ROOT" "$current"
+}
+
+theme_list() {
+    jq -r '
+        to_entries[]
+        | [.key, .value.name, .value.variant]
+        | @tsv
+    ' "$THEME_CATALOG"
+}
+
+theme_command() {
+    require_command jq
+    require_command python3
+
+    if [[ "$#" -gt 1 ]]; then
+        printf 'Usage: ./dotfiles theme [NAME|--list|--current|--reload]\n' >&2
+        return 2
+    fi
+
+    local requested=${1-}
+    case "$requested" in
+        -h | --help)
+            cat <<'EOF'
+Usage: ./dotfiles theme [NAME|--list|--current|--reload]
+
+With no name, choose a theme interactively with fzf.
+  --list     List available themes
+  --current  Print the tracked selected theme
+  --reload   Regenerate the tracked selected theme
+EOF
+            return
+            ;;
+        --list)
+            theme_list
+            return
+            ;;
+        --current)
+            theme_current
+            return
+            ;;
+        --reload)
+            requested="$(theme_current)"
+            ;;
+        '')
+            require_command fzf
+            local choice
+            choice="$(
+                theme_list |
+                    fzf \
+                        --height=60% \
+                        --layout=reverse \
+                        --border \
+                        --delimiter=$'\t' \
+                        --with-nth=2,3 \
+                        --prompt='theme › ' \
+                        --header='name / variant'
+            )"
+            [[ -n "$choice" ]] || return
+            requested="${choice%%$'\t'*}"
+            ;;
+    esac
+
+    if ! jq -e --arg name "$requested" 'has($name)' \
+        "$THEME_CATALOG" >/dev/null; then
+        printf 'dotfiles: unknown theme: %s\n' "$requested" >&2
+        printf 'Run `./dotfiles theme --list` to see available names.\n' >&2
+        return 2
+    fi
+
+    "$THEME_RENDERER" "$DOTFILES_ROOT" "$requested"
+
+    local display
+    display="$(
+        jq -r --arg name "$requested" '.[$name].name' "$THEME_CATALOG"
+    )"
+    printf 'Generated local theme files for %s (%s).\n' \
+        "$display" "$requested"
+
+    local scheme_source
+    local scheme_target
+    local scheme
+    IFS= read -r scheme <"$THEME_LOCAL_STATE/kde-scheme"
+    scheme_source="$DOTFILES_ROOT/kde/.local/share/color-schemes/$scheme.colors"
+    scheme_target="$HOME/.local/share/color-schemes/$scheme.colors"
+    if [[ "$DOTFILES_TARGET" == "$HOME" ]] &&
+        link_matches "$scheme_source" "$scheme_target"; then
+        apply_settings
+    else
+        printf 'Run `./dotfiles link` and `./dotfiles apply` to install it.\n'
+    fi
+}
+
+apply_settings() {
+    require_generated_theme
+    if command -v kwriteconfig6 >/dev/null 2>&1; then
         apply_kde_settings
     else
         printf 'Skipping KDE settings: Plasma configuration tools are unavailable.\n'
@@ -253,11 +481,13 @@ check_json() {
 
     local json_file
     local -a json_files=(
-        "$DOTFILES_ROOT/theme/.config/nulifyer/themes/colors.json"
-        "$DOTFILES_ROOT/theme/.config/nulifyer/theme/vscode/package.json"
-        "$DOTFILES_ROOT/theme/.config/nulifyer/theme/vscode/workbench.json"
-        "$DOTFILES_ROOT/theme/.config/nulifyer/theme/vscode/tokens.json"
-        "$DOTFILES_ROOT/theme/.config/nulifyer/theme/vscode/semantic.json"
+        "$THEME_CATALOG"
+        "$DOTFILES_ROOT/.theme/vscode/package.json"
+        "$DOTFILES_ROOT/.theme/vscode/workbench.json"
+        "$DOTFILES_ROOT/.theme/vscode/tokens.json"
+        "$DOTFILES_ROOT/.theme/vscode/semantic.json"
+        "$DOTFILES_ROOT/vscode/.vscode/extensions/nulifyer.nulifyer-theme-1.2.0/package.json"
+        "$DOTFILES_ROOT/vscode/.vscode/extensions/nulifyer.nulifyer-theme-1.2.0/themes/nulifyer.json"
         "$DOTFILES_ROOT/vscode/.config/Code/User/settings.json"
     )
 
@@ -271,16 +501,18 @@ check_json() {
             (.prompt | keys | length) == 7 and
             (.terminal.normal | keys | length) == 8 and
             (.terminal.bright | keys | length) == 8)
-    ' "$DOTFILES_ROOT/theme/.config/nulifyer/themes/colors.json" >/dev/null
+    ' "$THEME_CATALOG" >/dev/null
     jq -e 'length == 422' \
-        "$DOTFILES_ROOT/theme/.config/nulifyer/theme/vscode/workbench.json" \
+        "$DOTFILES_ROOT/.theme/vscode/workbench.json" \
         >/dev/null
     jq -e 'length == 790' \
-        "$DOTFILES_ROOT/theme/.config/nulifyer/theme/vscode/tokens.json" \
+        "$DOTFILES_ROOT/.theme/vscode/tokens.json" \
         >/dev/null
     jq -e 'length == 62' \
-        "$DOTFILES_ROOT/theme/.config/nulifyer/theme/vscode/semantic.json" \
+        "$DOTFILES_ROOT/.theme/vscode/semantic.json" \
         >/dev/null
+
+    "$THEME_RENDERER" --validate
 }
 
 check_shell() {
@@ -297,7 +529,15 @@ check_shell() {
         zsh -n "$DOTFILES_ROOT/zsh/.zshrc"
     fi
 
-    python3 -c 'import pathlib; compile(pathlib.Path("'"$DOTFILES_ROOT/theme/.config/nulifyer/theme/render.py"'").read_text(), "render.py", "exec")'
+    python3 -c '
+import pathlib
+
+for name in (
+    "'"$THEME_RENDERER"'",
+    "'"$DOTFILES_ROOT/.theme/check_kde.py"'",
+):
+    compile(pathlib.Path(name).read_text(), pathlib.Path(name).name, "exec")
+'
 }
 
 check_toml() {
@@ -307,11 +547,41 @@ import tomllib
 
 for name in (
     "'"$DOTFILES_ROOT/alacritty/.config/alacritty/alacritty.toml"'",
-    "'"${XDG_STATE_HOME:-$HOME/.local/state}/nulifyer/theme/alacritty.toml"'",
+    "'"$DOTFILES_ROOT/alacritty/.config/alacritty/theme.generated.toml"'",
 ):
     with pathlib.Path(name).open("rb") as stream:
         tomllib.load(stream)
 '
+}
+
+check_package_manifest() {
+    local class package extra
+    local failed=false
+    local -A seen=()
+
+    while read -r class package extra; do
+        [[ -n "${class:-}" ]] || continue
+        [[ "$class" == \#* ]] && continue
+
+        if [[ "$class" != required && "$class" != managed &&
+            "$class" != optional ]]; then
+            printf 'dotfiles: invalid package class: %s\n' "$class" >&2
+            failed=true
+        fi
+        if [[ -z "${package:-}" || -n "${extra:-}" ||
+            ! "$package" =~ ^[a-zA-Z0-9@._+-]+$ ]]; then
+            printf 'dotfiles: invalid Arch package entry: %s %s %s\n' \
+                "$class" "${package:-}" "${extra:-}" >&2
+            failed=true
+        elif [[ -n "${seen[$package]:-}" ]]; then
+            printf 'dotfiles: duplicate Arch package: %s\n' "$package" >&2
+            failed=true
+        else
+            seen[$package]=1
+        fi
+    done <"$DOTFILES_ROOT/packages.arch"
+
+    [[ "$failed" == false ]]
 }
 
 check_package_layout() {
@@ -338,17 +608,67 @@ check_package_layout() {
     done
 }
 
+check_generated_theme() {
+    require_generated_theme
+}
+
 check_stow() {
-    require_command stow
-    stow \
-        --dir="$DOTFILES_ROOT" \
-        --target="$DOTFILES_TARGET" \
-        --no-folding \
-        --simulate \
-        "${DOTFILES_PACKAGES[@]}"
+    local failed=false
+    local package source relative target
+    local -A expected_targets=()
+    local -A target_directories=()
+
+    for package in "${DOTFILES_PACKAGES[@]}"; do
+        while IFS= read -r -d '' source; do
+            relative="${source#"$DOTFILES_ROOT/$package/"}"
+            target="$DOTFILES_TARGET/$relative"
+            expected_targets["$target"]=1
+            target_directories["$(dirname -- "$target")"]=1
+            if ! link_matches "$source" "$target"; then
+                printf 'dotfiles: link drift: %s -> %s\n' \
+                    "$target" "$source" >&2
+                failed=true
+            fi
+        done < <(
+            find "$DOTFILES_ROOT/$package" \
+                \( -type f -o -type l \) -print0
+        )
+    done
+
+    local directory installed_link
+    local raw_destination resolved_destination
+    for directory in "${!target_directories[@]}"; do
+        [[ -d "$directory" ]] || continue
+        while IFS= read -r -d '' installed_link; do
+            [[ -n "${expected_targets[$installed_link]:-}" ]] && continue
+            raw_destination="$(readlink -- "$installed_link")"
+            if [[ "$raw_destination" == /* ]]; then
+                resolved_destination="$(readlink -m -- "$raw_destination")"
+            else
+                resolved_destination="$(
+                    readlink -m -- "$directory/$raw_destination"
+                )"
+            fi
+            if [[ "$resolved_destination" == "$DOTFILES_ROOT/"* ]]; then
+                printf 'dotfiles: obsolete managed link: %s -> %s\n' \
+                    "$installed_link" "$raw_destination" >&2
+                failed=true
+            fi
+        done < <(find "$directory" -maxdepth 1 -type l -print0)
+    done
+
+    [[ "$failed" == false ]]
 }
 
 check_active_settings() {
+    local target_root
+    local home_root
+    target_root="$(readlink -f -- "$DOTFILES_TARGET")"
+    home_root="$(readlink -f -- "$HOME")"
+    if [[ "$target_root" != "$home_root" ]]; then
+        return
+    fi
+
     if command -v code >/dev/null 2>&1; then
         code --list-extensions --show-versions 2>/dev/null |
             grep -q '^nulifyer\.nulifyer-theme@1\.2\.0$'
@@ -359,10 +679,12 @@ check_active_settings() {
 
 check_all() {
     printf 'Validating dotfiles...\n'
-    git -C "$DOTFILES_ROOT" diff --check
+    git -C "$DOTFILES_ROOT" diff --check HEAD
+    check_generated_theme
     check_json
     check_shell
     check_toml
+    check_package_manifest
     check_package_layout
     check_stow
     check_active_settings
@@ -385,6 +707,7 @@ show_status() {
 
 update_all() {
     git -C "$DOTFILES_ROOT" pull --ff-only
+    theme_command --reload
     link_packages
     apply_settings
     check_all
@@ -393,7 +716,8 @@ update_all() {
 main() {
     local command_name="${1:-help}"
 
-    if [[ "$#" -gt 1 ]]; then
+    if [[ "$command_name" != theme && "$command_name" != doctor &&
+        "$#" -gt 1 ]]; then
         printf 'dotfiles: unexpected argument: %s\n' "$2" >&2
         usage >&2
         return 2
@@ -406,8 +730,14 @@ main() {
         apply)
             apply_settings
             ;;
+        theme)
+            theme_command "${@:2}"
+            ;;
         check)
             check_all
+            ;;
+        doctor)
+            doctor_command "${@:2}"
             ;;
         update)
             update_all
