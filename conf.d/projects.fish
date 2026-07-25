@@ -145,3 +145,5 @@ end
 
 complete --command z --no-files --arguments '(__z_complete_projects)'
 complete --command zopen --no-files --arguments '(__z_complete_projects)'
+complete --command zlink --condition '__fish_is_nth_token 1' \
+    --no-files --arguments '(__z_complete_projects)'
