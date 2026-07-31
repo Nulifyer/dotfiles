@@ -324,9 +324,93 @@ check_kde_settings() {
     [[ "$failed" == false ]]
 }
 
+link_matches() {
+    local source=$1
+    local target=$2
+    [[ -L "$target" ]] &&
+        [[ "$(readlink -f -- "$target")" == "$(readlink -f -- "$source")" ]]
+}
+
+replace_link_conflicts() {
+    local package source relative target choice
+    local failed=false
+    local -a conflict_sources=()
+    local -a conflict_targets=()
+    local -a conflict_choices=()
+
+    for package in "${DOTFILES_PACKAGES[@]}"; do
+        while IFS= read -r -d '' source; do
+            relative="${source#"$DOTFILES_ROOT/$package/"}"
+            target="$DOTFILES_TARGET/$relative"
+            link_matches "$source" "$target" && continue
+
+            if [[ -d "$target" && ! -L "$target" ]]; then
+                printf 'dotfiles: refusing to replace directory: %s\n' \
+                    "$target" >&2
+                failed=true
+            elif [[ -e "$target" || -L "$target" ]]; then
+                conflict_sources+=("$source")
+                conflict_targets+=("$target")
+            fi
+        done < <(
+            find "$DOTFILES_ROOT/$package" \
+                \( -type f -o -type l \) -print0
+        )
+    done
+
+    [[ "$failed" == false ]] || return 1
+
+    local index
+    for index in "${!conflict_targets[@]}"; do
+        source="${conflict_sources[$index]}"
+        target="${conflict_targets[$index]}"
+        while true; do
+            printf 'Conflict: %s\n' "$target"
+            printf '  [r] Keep repository version: %s\n' "$source"
+            printf '  [t] Keep target version and import it into the repository\n'
+            printf '  [a] Abort\n'
+            printf 'Choose [r/t/a]: '
+            if ! IFS= read -r choice; then
+                printf '\ndotfiles: no conflict choice received; aborting\n' >&2
+                return 1
+            fi
+            case "${choice,,}" in
+                r | repository)
+                    conflict_choices+=(repository)
+                    break
+                    ;;
+                t | target)
+                    conflict_choices+=(target)
+                    break
+                    ;;
+                a | abort | '')
+                    printf 'dotfiles: linking aborted\n' >&2
+                    return 1
+                    ;;
+                *)
+                    printf 'Enter r, t, or a.\n' >&2
+                    ;;
+            esac
+        done
+    done
+
+    for index in "${!conflict_targets[@]}"; do
+        source="${conflict_sources[$index]}"
+        target="${conflict_targets[$index]}"
+        if [[ "${conflict_choices[$index]}" == repository ]]; then
+            printf 'Keeping repository version: %s\n' "$source"
+            rm -f -- "$target"
+        else
+            printf 'Importing target version into repository: %s\n' "$source"
+            mv -fT -- "$target" "$source"
+        fi
+    done
+}
+
 link_packages() {
     require_command stow
     require_generated_theme
+    replace_link_conflicts
     printf 'Linking dotfile packages into %s...\n' "$DOTFILES_TARGET"
     stow \
         --dir="$DOTFILES_ROOT" \
@@ -345,13 +429,6 @@ unlink_packages() {
         --no-folding \
         --delete \
         "${DOTFILES_PACKAGES[@]}"
-}
-
-link_matches() {
-    local source=$1
-    local target=$2
-    [[ -L "$target" ]] &&
-        [[ "$(readlink -f -- "$target")" == "$(readlink -f -- "$source")" ]]
 }
 
 theme_current() {

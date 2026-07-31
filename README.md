@@ -30,7 +30,7 @@ The task runner is not linked into `~/.local/bin`; it only exists in this
 repository. It is a small Bash dispatcher, so Make is not required.
 
 ```text
-./dotfiles link         Create or refresh Stow links
+./dotfiles link         Resolve conflicts and refresh Stow links
 ./dotfiles apply        Apply KDE and other non-linkable settings
 ./dotfiles theme NAME   Regenerate local theme files from colors.json
 ./dotfiles check        Validate files, generated output, links, and active state
@@ -40,18 +40,23 @@ repository. It is a small Bash dispatcher, so Make is not required.
 ./dotfiles unlink       Remove managed links
 ```
 
+When a managed target file conflicts with the repository, `link` prompts you to
+keep either version. Keeping the target imports it into the repository before
+linking, while keeping the repository replaces the target. A directory at a
+managed file path aborts instead of being deleted recursively.
+
 Preview the complete Stow layout without modifying the filesystem:
 
 ```sh
 stow --simulate --verbose --target="$HOME" --no-folding \
-    alacritty bash fish kde kitty spectacle vscode zsh
+    alacritty bash fish kde kitty spectacle vscode zsh opencode
 ```
 
 Remove the managed links:
 
 ```sh
 stow --delete --target="$HOME" --no-folding \
-    alacritty bash fish kde kitty spectacle vscode zsh
+    alacritty bash fish kde kitty spectacle vscode zsh opencode
 ```
 
 Fish's generated `fish_variables` file remains local and is not tracked.

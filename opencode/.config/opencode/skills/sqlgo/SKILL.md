@@ -1,189 +1,156 @@
 ---
 name: sqlgo
-description: 'Use sqlgo CLI to run SQL queries, export results, and manage database connections from the terminal. Use when: executing SQL against databases (Postgres, MySQL, SQL Server, SQLite, Oracle, Firebird, flat files like CSV/TSV/JSONL), exporting query results to files, managing saved connections, SSH tunneling to remote databases, scripting database operations headlessly.'
+description: Use sqlgo CLI when running SQL, querying SQLite/Postgres/MySQL/SQL Server/Oracle/Firebird/Turso/D1, querying CSV/TSV/JSONL files, exporting results, managing saved connections, SSH tunneling, or scripting database operations headlessly.
 ---
 
-# sqlgo CLI
+# sqlgo
 
-Headless SQL client. Query, export, manage connections from terminal. No TUI when verb is first arg.
+Headless SQL CLI. Use terminal mode, not TUI, by passing verb first.
 
-## Databases
+## First Check
 
-Postgres, MySQL, SQL Server, SQLite, Oracle, Firebird, Turso/libSQL, Cloudflare D1, flat files (CSV/TSV/JSONL -> in-memory SQLite).
+Use built-in help for advanced or uncertain options:
 
-DSN schemes: `postgres://`, `mysql://`, `mssql://` / `sqlserver://`, `sqlite://`, `oracle://`, `firebird://`, `libsql://`, `d1://`.
-Aliases work as schemes/drivers: `cockroachdb`, `supabase`, `neon`, `yugabytedb`, `timescaledb`, `mariadb`.
+```sh
+sqlgo help
+sqlgo help exec
+sqlgo help export
+sqlgo help open
+sqlgo help conns
+```
 
 ## Verbs
 
-| Verb | Purpose |
-|------|---------|
-| `exec` | Run SQL, print. Table on tty, TSV piped. |
-| `export` | Run SQL, write to file/stdout. Default CSV. |
-| `open` | Load CSV/TSV/JSONL files into ephemeral in-memory SQLite. Headless with `-q`/`-f`/stdin, else launches TUI. |
-| `edit` | Launch TUI with a `.sql`/`.txt` file preloaded in editor. |
-| `conns` | Saved connections (add/set/rm/test/list/show/import/export). |
-| `history` | History (list/search/clear). |
-| `version` | Print sqlgo version. |
-| `help` | Show top-level help or per-verb help (`sqlgo help <verb>`). |
-| `completion` | Print shell-completion script: `bash`, `zsh`, `fish`, `powershell`, `pwsh`. |
+- `exec`: run SQL, print results.
+- `export`: run SQL, write file/stdout.
+- `open`: load CSV/TSV/JSONL into temp SQLite.
+- `conns`: manage saved connections.
+- `history`: list/search/clear history.
+- `version`: print version.
+- `completion`: shell completions.
 
-## exec & export Flags
+## DSN
 
-| Flag | Effect |
-|------|--------|
-| `-c NAME` / `--conn` | Saved connection. |
-| `--dsn URL` | Inline DSN: `scheme://user:pass@host:port/db?opt=val` |
-| `-q SQL` / `--query` | Inline SQL. |
-| `-f PATH` / `--file` | SQL from file. `-` = stdin. |
-| `--format FMT` | `csv`, `tsv`, `json`, `jsonl`, `markdown`, `table` |
-| `-o PATH` / `--output` | Output file. Format from extension unless `--format` set. |
-| `--max-rows N` | Stop after N rows. Exit 5. |
-| `--timeout DUR` | Abort after duration. |
-| `--allow-unsafe` | Permit destructive DML/DDL (UPDATE/DELETE no WHERE, TRUNCATE, DROP). Without = exit 4. |
-| `--continue-on-error` | Keep running on failure. |
-| `--record-history` | Save to history. Off by default. |
-| `--password-stdin` | Read password from stdin. |
-
-Password precedence: `--password-stdin` > `$SQLGO_PASSWORD` > DSN/keyring.
-
-## open Flags
-
-`sqlgo open FILE [FILE...]` - each file becomes a table named after the filename.
-
-| Flag | Effect |
-|------|--------|
-| `-q SQL` / `--query` | Inline SQL (switches to headless). |
-| `-f PATH` / `--file` | SQL from file. `-` = stdin (switches to headless). |
-| `--format FMT` | Headless output format: `csv`, `tsv`, `json`, `jsonl`, `markdown`, `table` |
-| `-o PATH` / `--output` | Headless output path (default stdout). |
-| `--max-rows N` | Stop after N rows (headless). |
-| `--timeout DUR` | Abort each statement after duration (headless). |
-| `--allow-unsafe` | Permit destructive statements (headless). |
-| `--continue-on-error` | Keep running after a failure (headless). |
-
-Without `-q`/`-f`/stdin the TUI launches pre-connected to the files. Nothing is persisted; no saved connection is created.
-
-## edit
-
-`sqlgo edit FILE.sql` - launches TUI with FILE preloaded in the query editor. Allowed extensions: `.sql`, `.txt`.
-
-## conns Subcommands
-
-| Subcommand | Flags |
-|------------|-------|
-| `list`/`ls` | `--format FMT` |
-| `show NAME` | - |
-| `add NAME` | `--driver NAME` (required), `--host`, `--port`, `--user`, `--database`, `--option k=v` (repeatable), `--password-stdin`, `--keyring=true\|false` (default true), `--force`, `--ssh-host`, `--ssh-port`, `--ssh-user`, `--ssh-key PATH`, `--ssh-password-stdin` |
-| `set NAME` | Same as add. Upserts - only supplied fields change. |
-| `rm NAME` | `--force` (no error if missing). |
-| `test NAME` | `--timeout DUR` (default 10s), `--password-stdin`. |
-| `import` | `-i FILE` / `--input FILE` (default stdin). |
-| `export` | `-o FILE` / `--output FILE` (default stdout). |
-
-Passwords -> OS keyring by default. `--keyring=false` = plaintext.
-`conns export` writes keyring passwords as placeholders - not secret backup.
-
-## history Subcommands
-
-| Subcommand | Flags |
-|------------|-------|
-| `list`/`ls` | `-c NAME`, `--limit N` (default 50), `--format FMT` |
-| `search QUERY` | `-c NAME`, `--limit N` (default 50), `--format FMT` |
-| `clear` | `-c NAME` (scope one conn), `--force` (required) |
-
-No history recorded unless `--record-history` passed.
-
-## SSH Tunneling
-
-SSH flags on `conns add`/`conns set`: `--ssh-host`, `--ssh-port`, `--ssh-user`, `--ssh-key PATH`, `--ssh-password-stdin`.
-
-- Key-file preferred. Password = fallback.
-- `ssh-agent` NOT supported - need key file or password.
-- Host keys checked against `~/.ssh/known_hosts`.
-- `$SQLGO_SSH_PASSWORD` = env equivalent of `--ssh-password-stdin`.
-- Both `--password-stdin` + `--ssh-password-stdin` set -> stdin reads two newline-delimited values.
-
-## Examples
+Use `--dsn` inline:
 
 ```sh
-# Query with saved connection
-sqlgo exec -c myconn -q "SELECT version()"
+sqlgo exec --dsn "sqlite:///C:/path/db.sqlite3" -q "SELECT COUNT(*) FROM table"
+sqlgo exec --dsn "postgres://user:pass@host:5432/db" -q "SELECT version()"
+```
 
-# SQL file -> CSV file
-sqlgo export -c myconn -f report.sql -o report.csv
+Schemes include:
 
-# Inline DSN, JSONL for piping
-sqlgo export --dsn "postgres://user@host:5432/db" -q "SELECT * FROM users" --format jsonl
+```text
+sqlite:// postgres:// mysql:// mssql:// sqlserver:// oracle:// firebird:// libsql:// d1://
+```
 
-# Add a connection (password from stdin -> OS keyring)
-echo -n "$PASSWORD" | sqlgo conns add myconn --driver postgres --host db.local --port 5432 --user me --database app --password-stdin
+Aliases include:
 
-# Test connection
-sqlgo conns test myconn
+```text
+cockroachdb supabase neon yugabytedb timescaledb mariadb
+```
 
-# Backup/restore connections
-sqlgo conns export -o conns.json
-sqlgo conns import -i conns.json
+## Query
 
-# Query a flat file (CSV/TSV/JSONL loaded into SQLite)
+Inline SQL:
+
+```sh
+sqlgo exec --dsn "sqlite:///db.sqlite3" -q "SELECT * FROM files LIMIT 10" --format table
+```
+
+SQL file:
+
+```sh
+sqlgo exec --dsn "sqlite:///db.sqlite3" -f query.sql --format jsonl
+```
+
+Timeout:
+
+```sh
+sqlgo exec --dsn "sqlite:///db.sqlite3" -q "SELECT ..." --timeout 30s
+```
+
+## Export
+
+```sh
+sqlgo export --dsn "sqlite:///db.sqlite3" -q "SELECT * FROM files" -o files.csv
+sqlgo export --dsn "sqlite:///db.sqlite3" -q "SELECT * FROM files" --format jsonl -o files.jsonl
+```
+
+Formats:
+
+```text
+csv tsv json jsonl markdown table
+```
+
+Row cap:
+
+```sh
+sqlgo export --dsn "sqlite:///db.sqlite3" -q "SELECT * FROM big_table" --max-rows 1000 -o sample.csv
+```
+
+`--max-rows` exits 5 after partial output.
+
+## Flat Files
+
+Load local files into temp SQLite:
+
+```sh
 sqlgo open data.csv -q "SELECT * FROM data WHERE amount > 100"
-
-# Join multiple flat files
 sqlgo open users.csv orders.jsonl -q "SELECT u.name, o.total FROM users u JOIN orders o ON u.id = o.user_id"
-
-# Open flat files in TUI for interactive exploration
-sqlgo open data.csv
-
-# Multiple statements from file, keep going on error
-sqlgo exec -c myconn -f migrations.sql --continue-on-error --allow-unsafe
-
-# Export with row cap
-sqlgo export -c myconn -q "SELECT * FROM big_table" -o sample.tsv --max-rows 1000
 ```
 
-## Exit Codes
+No persistence. Table name comes from filename.
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1 | Usage/arg error |
-| 2 | Connection/store error |
-| 3 | Query error |
-| 4 | Refused - unsafe mutation, no `--allow-unsafe` |
-| 5 | `--max-rows` hit (partial output flushed) |
+## Connections
 
-## Env Vars
-
-| Variable | Default | Effect |
-|----------|---------|--------|
-| `SQLGO_PASSWORD` | - | Conn password (below `--password-stdin`) |
-| `SQLGO_SSH_PASSWORD` | - | SSH password (below `--ssh-password-stdin`) |
-| `SQLGO_BYTE_CAP` | 2 GiB | Max bytes per result set; file-driver spill threshold |
-| `SQLGO_DEBUG` | - | `1` = stack traces on panic |
-
-## Key Behaviors
-
-- No implicit transactions. `BEGIN`/`COMMIT`/`ROLLBACK` = yours.
-- Destructive DML/DDL blocked without `--allow-unsafe`.
-- `exec` output: table on tty, TSV piped. Override with `--format`.
-- `export` default CSV. `-o` extension overrides format.
-- Store: `%LocalAppData%\sqlgo` (Win), `~/.local/share/sqlgo` (Linux), `~/Library/Application Support/sqlgo` (mac). `sqlgo.db` (SQLite WAL) holds connections + history.
-
-## completion
-
-Generate shell completions: `sqlgo completion bash|zsh|fish|powershell|pwsh`.
+Use saved connection:
 
 ```sh
-# PowerShell - add to $PROFILE
-sqlgo completion pwsh | Out-String | Invoke-Expression
-
-# Bash
-sqlgo completion bash > ~/.local/share/bash-completion/completions/sqlgo
-
-# Zsh
-sqlgo completion zsh > "${fpath[1]}/_sqlgo"
-
-# Fish
-sqlgo completion fish > ~/.config/fish/completions/sqlgo.fish
+sqlgo exec -c myconn -q "SELECT version()"
 ```
+
+Manage:
+
+```sh
+sqlgo conns list
+sqlgo conns show myconn
+sqlgo conns test myconn
+sqlgo conns rm myconn --force
+```
+
+Add connection with password from stdin:
+
+```sh
+echo -n "$PASSWORD" | sqlgo conns add myconn --driver postgres --host db.local --port 5432 --user me --database app --password-stdin
+```
+
+Passwords use OS keyring by default. `--keyring=false` stores plaintext.
+
+## Safety
+
+Destructive SQL blocked unless `--allow-unsafe`:
+
+```sh
+sqlgo exec --dsn "sqlite:///db.sqlite3" -q "DROP TABLE x" --allow-unsafe
+```
+
+Do not use `--allow-unsafe` unless user explicitly intends mutation.
+
+## SSH
+
+`conns add`/`set` support:
+
+```text
+--ssh-host --ssh-port --ssh-user --ssh-key --ssh-password-stdin
+```
+
+Key file preferred. `ssh-agent` not supported. Host keys checked via `~/.ssh/known_hosts`.
+
+## Output Rules
+
+- Prefer `exec` for quick inspection.
+- Prefer `export` for files or large results.
+- Use `--format jsonl` for pipelines.
+- Use `--timeout` for risky/remote queries.
+- Use help commands for advanced flags before guessing.
