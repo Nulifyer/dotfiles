@@ -109,10 +109,10 @@ commands:
 ./dotfiles theme --reload
 ```
 
-One selection locally generates Fish, Bash, Zsh, Kitty, Alacritty, KDE, and VS
-Code files from the same palette. Each generated file lives in its owning Stow
-package and is ignored by Git. Repository-local selection state lives under
-`.theme/local`. The catalog, renderer, templates, and application
+One selection locally generates Fish, Bash, Zsh, Kitty, Alacritty, KDE, VS Code,
+and OpenCode files from the same palette. Each generated file lives in its
+owning Stow package and is ignored by Git. Repository-local selection state
+lives under `.theme/local`. The catalog, renderer, templates, and application
 configurations remain visible in repository diffs.
 
 Generated output is organized by owner:
@@ -122,6 +122,7 @@ Generated output is organized by owner:
 - `fish/.config/fish/themes/current.fish`
 - `kde/.local/share/color-schemes`
 - `kitty/.config/kitty/theme.generated.conf`
+- `opencode/.config/opencode/themes/nulifyer.json`
 - `vscode/.vscode/extensions/nulifyer.nulifyer-theme-1.2.0`
 - `zsh/.config/zsh/theme.generated.zsh`
 
@@ -131,5 +132,5 @@ pulling.
 
 When the packages are already linked, Kitty and Alacritty watch their generated
 includes and KDE is reapplied immediately. New Bash and Zsh sessions load the
-selected prompt colors. VS Code may require a window reload after its stowed
-extension changes.
+selected prompt colors. VS Code and OpenCode may require a reload after their
+generated themes change.

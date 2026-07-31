@@ -17,6 +17,7 @@ readonly -a DOTFILES_PACKAGES=(
     spectacle
     vscode
     zsh
+    opencode
 )
 readonly THEME_CATALOG="$DOTFILES_ROOT/colors.json"
 readonly THEME_RENDERER="$DOTFILES_ROOT/.theme/render.py"
@@ -489,6 +490,7 @@ check_json() {
         "$DOTFILES_ROOT/vscode/.vscode/extensions/nulifyer.nulifyer-theme-1.2.0/package.json"
         "$DOTFILES_ROOT/vscode/.vscode/extensions/nulifyer.nulifyer-theme-1.2.0/themes/nulifyer.json"
         "$DOTFILES_ROOT/vscode/.config/Code/User/settings.json"
+        "$DOTFILES_ROOT/opencode/.config/opencode/themes/nulifyer.json"
     )
 
     for json_file in "${json_files[@]}"; do

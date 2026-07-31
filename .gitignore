@@ -12,5 +12,6 @@ __pycache__/
 /fish/.config/fish/themes/current.fish
 /kde/.local/share/color-schemes/
 /kitty/.config/kitty/theme.generated.conf
+/opencode/.config/opencode/themes/nulifyer.json
 /vscode/.vscode/extensions/nulifyer.nulifyer-theme-1.2.0/
 /zsh/.config/zsh/theme.generated.zsh

@@ -19,6 +19,9 @@ HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
 VSCODE_EXTENSION_PATH = Path(
     "vscode/.vscode/extensions/nulifyer.nulifyer-theme-1.2.0"
 )
+OPENCODE_THEME_PATH = Path(
+    "opencode/.config/opencode/themes/nulifyer.json"
+)
 
 ROLE_DEFAULTS = {
     "accent": "cyan",
@@ -81,6 +84,23 @@ def adjust_hex(value: str, percent: int) -> str:
             result = channel + (255 - channel) * percent / 100
         adjusted.append(max(0, min(255, round(result))))
     return "#" + "".join(f"{channel:02X}" for channel in adjusted)
+
+
+def blend_hex(background: str, foreground: str, percent: int) -> str:
+    if not 0 <= percent <= 100:
+        raise ValueError(f"invalid blend percentage: {percent}")
+    background_channels = rgb(background)
+    foreground_channels = rgb(foreground)
+    blended = [
+        round(
+            background_channel
+            + (foreground_channel - background_channel) * percent / 100
+        )
+        for background_channel, foreground_channel in zip(
+            background_channels, foreground_channels
+        )
+    ]
+    return "#" + "".join(f"{channel:02X}" for channel in blended)
 
 
 def rgb(value: str) -> tuple[int, int, int]:
@@ -243,6 +263,76 @@ def render_vscode(
         json.dumps(package, indent=2) + "\n",
         json.dumps(color_theme, indent=2) + "\n",
     )
+
+
+def render_opencode(context: dict[str, str]) -> str:
+    theme = {
+        "primary": context["accent"],
+        "secondary": context["link"],
+        "accent": context["accent"],
+        "error": context["error"],
+        "warning": context["warning"],
+        "success": context["success"],
+        "info": context["info"],
+        "text": context["fg"],
+        "textMuted": context["fgMuted"],
+        "background": context["bgBase"],
+        "backgroundPanel": context["bgMid"],
+        "backgroundElement": context["bgSurface"],
+        "border": context["bgBorder"],
+        "borderActive": context["fgMuted"],
+        "borderSubtle": context["bgBorder"],
+        "diffAdded": context["success"],
+        "diffRemoved": context["error"],
+        "diffContext": context["fgMuted"],
+        "diffHunkHeader": context["link"],
+        "diffHighlightAdded": context["success"],
+        "diffHighlightRemoved": context["error"],
+        "diffAddedBg": blend_hex(
+            context["bgBase"], context["success"], 18
+        ),
+        "diffRemovedBg": blend_hex(
+            context["bgBase"], context["error"], 18
+        ),
+        "diffContextBg": context["bgSurface"],
+        "diffLineNumber": context["fgMuted"],
+        "diffAddedLineNumberBg": blend_hex(
+            context["bgBase"], context["success"], 12
+        ),
+        "diffRemovedLineNumberBg": blend_hex(
+            context["bgBase"], context["error"], 12
+        ),
+        "markdownText": context["fg"],
+        "markdownHeading": context["accent"],
+        "markdownLink": context["link"],
+        "markdownLinkText": context["link"],
+        "markdownCode": context["success"],
+        "markdownBlockQuote": context["fgMuted"],
+        "markdownEmph": context["error"],
+        "markdownStrong": context["accent"],
+        "markdownHorizontalRule": context["bgBorder"],
+        "markdownListItem": context["accent"],
+        "markdownListEnumeration": context["cyan"],
+        "markdownImage": context["link"],
+        "markdownImageText": context["cyan"],
+        "markdownCodeBlock": context["fg"],
+        "syntaxComment": context["fgMuted"],
+        "syntaxKeyword": context["error"],
+        "syntaxFunction": context["accent"],
+        "syntaxVariable": context["fg"],
+        "syntaxString": context["success"],
+        "syntaxNumber": context["magenta"],
+        "syntaxType": context["success"],
+        "syntaxOperator": context["error"],
+        "syntaxPunctuation": context["accent"],
+    }
+    return json.dumps(
+        {
+            "$schema": "https://opencode.ai/theme.json",
+            "theme": theme,
+        },
+        indent=2,
+    ) + "\n"
 
 
 def render_fish(
@@ -549,6 +639,7 @@ def main() -> int:
             render_alacritty(key, theme)
             render_kde(key, theme, context)
             render_vscode(key, theme, context)
+            render_opencode(context)
         return 0
 
     check_only = len(sys.argv) == 4 and sys.argv[1] == "--check"
@@ -599,6 +690,7 @@ def main() -> int:
         local_state_root / "kde-scheme": kde_scheme + "\n",
         vscode_root / "package.json": vscode_package,
         vscode_root / "themes/nulifyer.json": vscode_theme,
+        output_root / OPENCODE_THEME_PATH: render_opencode(context),
         local_state_root / "current": key + "\n",
     }
     for catalog_key, catalog_theme in catalog.items():
