@@ -15,6 +15,7 @@ managed spectacle
 managed ttf-cascadia-mono-nerd
 managed visual-studio-code-bin
 managed zsh
+managed opencode
 
 # Enhancements used when installed.
 optional bat
