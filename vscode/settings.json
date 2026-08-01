@@ -56,8 +56,10 @@
   "editor.renderControlCharacters": false,
   "editor.semanticHighlighting.enabled": true,
   "editor.suggestSelection": "first",
+  "explorer.confirmDelete": false,
   "extensions.ignoreRecommendations": true,
   "git.autofetch": true,
+  "git.confirmSync": false,
   "go.toolsManagement.autoUpdate": true,
   "json.schemaDownload.trustedDomains": {
     "https://aka.ms": true,
@@ -78,35 +80,37 @@
   "python.analysis.typeCheckingMode": "standard",
   "redhat.telemetry.enabled": false,
   "scm.defaultViewMode": "tree",
-  "settingsSync.ignoredSettings": [
-    "terminal.integrated.sendKeybindingsToShell"
-  ],
-  "terminal.integrated.allowChords": false,
   "terminal.integrated.defaultProfile.linux": "fish",
+  "terminal.integrated.allowChords": true,
+  "terminal.integrated.sendKeybindingsToShell": true,
+  "terminal.integrated.shellIntegration.enabled": true,
   "terminal.integrated.enablePersistentSessions": false,
-  "terminal.integrated.fontFamily": "CaskaydiaMono NF",
+  "terminal.integrated.stickyScroll.enabled": false,
   "terminal.integrated.initialHint": false,
+  "terminal.integrated.copyOnSelection": false,
+  "terminal.integrated.rightClickBehavior": "default",
+  "terminal.integrated.middleClickBehavior": "paste",
+  "terminal.integrated.fontFamily": "CaskaydiaMono NF",
+  "terminal.integrated.gpuAcceleration": "auto",
   "terminal.integrated.profiles.linux": {
     "fish": {
-      "path": "fish",
+      "path": "/usr/bin/fish",
       "icon": "terminal"
     },
     "bash": {
-      "path": "bash",
+      "path": "/usr/bin/bash",
       "icon": "terminal-bash"
     },
     "zsh": {
-      "path": "zsh",
+      "path": "/usr/bin/zsh",
       "icon": "terminal"
     }
   },
-  "terminal.integrated.sendKeybindingsToShell": false,
-  "terminal.integrated.shellIntegration.enabled": false,
-  "terminal.integrated.stickyScroll.enabled": false,
   "vsicons.dontShowNewVersionMessage": true,
   "window.commandCenter": false,
   "window.titleBarStyle": "native",
   "workbench.activityBar.location": "top",
+  "workbench.browser.searchEngine": "duckduckgo",
   "workbench.colorTheme": "Nulifyer",
   "workbench.editor.empty.hint": "hidden",
   "workbench.editorAssociations": {
@@ -122,8 +126,5 @@
   "xml.server.preferBinary": true,
   "zig.zls.enabled": "on",
   "zig.zls.inlayHintsShowParameterName": false,
-  "zig.zls.warnStyle": true,
-  "git.confirmSync": false,
-  "workbench.browser.searchEngine": "duckduckgo",
-  "explorer.confirmDelete": false
+  "zig.zls.warnStyle": true
 }
