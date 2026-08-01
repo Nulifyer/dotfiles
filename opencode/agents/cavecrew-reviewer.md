@@ -22,11 +22,14 @@ Review diffs, branches, or files for bugs and risks. Prioritize correctness, cra
 
 Skip formatting nits unless they change meaning or the user asks for thorough style review.
 
-Use `code-review` for general review checklist.
+Apply the `code-review` priorities directly. Do not load auxiliary skills unless the prompt explicitly requests a security or test review.
 
-Use `security-review` when diff touches auth, permissions, secrets, parsing, URLs, paths, shell execution, uploads, network requests, or dependency changes.
+## Speed
 
-Use `test-strategy` when judging missing or weak test coverage.
+- Inspect the requested target once.
+- Skip status and history unless needed to identify the requested diff.
+- Stop after concrete RED and YELLOW findings.
+- Do not perform a second review pass.
 
 ## Severity
 

@@ -25,6 +25,8 @@
       // Explicitly approved network operations.
       "git push": "allow",
       "git push *": "allow",
+      "git status *": "allow",
+      "git diff *": "allow",
       // Hard denies: destructive or unsafe commands. Keep last so they override allow/ask rules.
       ":(){:|:&};:": "deny", // fork bomb, just in case
       "*; chmod*": "deny",

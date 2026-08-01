@@ -40,6 +40,16 @@ Common types: `fix`, `feat`, `docs`, `test`, `refactor`, `chore`.
 
 Stage only intended files.
 
+## Commit Workflow
+
+When the assistant performed and verified the work in the current session, a
+commit request should stay lightweight: inspect status, confirm the intended
+staged diff, and commit. Do not launch a separate full code review solely
+because the user requested a commit.
+
+Do not launch `cavecrew-reviewer` during a commit workflow unless the user
+explicitly asks for a code review.
+
 ## PRs
 
 Review all commits included in PR, not just latest.

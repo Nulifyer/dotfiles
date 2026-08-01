@@ -23,22 +23,26 @@ Use `cavecrew-builder` for surgical edits:
 - Existing target files already known.
 - Scope obvious and bounded.
 
-Use `cavecrew-reviewer` for review:
+Use `cavecrew-reviewer` only when the user explicitly requests a review:
 
 - Diff review.
 - Branch review.
 - File review for bugs and risks.
 
+Do not append reviewer runs to implementation, verification, or commit
+workflows automatically. Inspect small current-session diffs inline when needed.
+
 Do not use cavecrew when user needs prose, architecture rationale, broad design, or 3+ file feature work.
 
 ## Chaining
 
-Locate-fix-review:
+Locate-fix:
 
 1. Investigator locates candidate sites.
 2. Main thread chooses 1-2 sites.
 3. Builder edits exact paths.
-4. Reviewer audits diff.
+
+Add a reviewer only when the user requested review.
 
 Parallel scout:
 
