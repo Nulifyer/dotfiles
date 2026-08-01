@@ -50,4 +50,7 @@
       "xargs*": "deny"
     },
   },
+  "plugin": [
+    "@prevalentware/opencode-goal-plugin"
+  ],
 }
