@@ -1,11 +1,11 @@
 ---
 name: cavecrew
-description: Use when user mentions delegation, subagents, cavecrew, save context, compressed output, investigator, builder, or reviewer. Guides when to spawn cavecrew subagents versus doing work inline.
+description: Use when user mentions delegation, subagents, cavecrew, saving context, investigator, builder, or reviewer. Guides when to delegate focused work versus handling it inline.
 ---
 
 # Cavecrew
 
-Cavecrew is three compressed subagent presets. Use them when context economy matters and output can be terse.
+Cavecrew provides three focused subagents with narrow scopes and terse result formats. Use them when delegation saves main-context space.
 
 ## Routing
 

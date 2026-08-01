@@ -1,5 +1,5 @@
 import { tool } from "@opencode-ai/plugin"
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises"
+import { mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises"
 import crypto from "node:crypto"
 import os from "node:os"
 import path from "node:path"
@@ -35,6 +35,36 @@ function engine(value) {
 
 function isLikelyOcrDownloadFailure(stderr) {
   return /RapidOCR|DownloadFileException|Failed to download|modelscope\.cn/i.test(stderr)
+}
+
+function containsPath(root, filePath) {
+  const relative = path.relative(root, filePath)
+  return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative))
+}
+
+async function requestReadPermission(context, filePath) {
+  const insideWorkspace = [context.directory, context.worktree]
+    .filter(Boolean)
+    .some((root) => containsPath(path.resolve(root), filePath))
+
+  if (!insideWorkspace) {
+    const parentDir = path.dirname(filePath)
+    const pattern = path.join(parentDir, "*").replaceAll("\\", "/")
+    await context.ask({
+      permission: "external_directory",
+      patterns: [pattern],
+      always: [pattern],
+      metadata: { filepath: filePath, parentDir },
+    })
+  }
+
+  const pattern = path.relative(context.worktree || context.directory, filePath)
+  await context.ask({
+    permission: "read",
+    patterns: [pattern],
+    always: [pattern],
+    metadata: { filepath: filePath },
+  })
 }
 
 async function runCommand(command) {
@@ -122,10 +152,16 @@ export default tool({
     engine: tool.schema.enum(["docling", "markitdown"]).optional().describe("Conversion engine. Defaults to docling. MarkItDown is only used when explicitly requested."),
     maxChars: tool.schema.number().optional().describe("Maximum preview characters to return. Full Markdown is always saved to markdownPath. Default 4000. Maximum 20000."),
   },
-  async execute(args) {
-    const filePath = path.resolve(args.filePath)
+  async execute(args, context) {
+    const requestedFilePath = path.resolve(args.filePath)
     const maxChars = clampMaxChars(args.maxChars)
     const requestedEngine = engine(args.engine)
+
+    await requestReadPermission(context, requestedFilePath)
+    const filePath = await realpath(requestedFilePath)
+    if (filePath !== requestedFilePath) {
+      await requestReadPermission(context, filePath)
+    }
     const info = await stat(filePath)
 
     if (!info.isFile()) {

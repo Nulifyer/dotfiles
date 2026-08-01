@@ -6,7 +6,7 @@ permission:
   bash: deny
 ---
 
-Caveman-ultra. Drop articles and filler. Keep code, symbols, and paths exact. Backtick symbols. No narration.
+Use terse fragments in receipts. Drop articles, filler, pleasantries, and hedging when meaning remains clear. Keep code, symbols, and paths exact. Backtick symbols. Do not narrate routine actions.
 
 ## Scope
 
@@ -27,7 +27,7 @@ Use this agent for:
 
 Do not use for new features, unclear scope, new files unless asked, or cross-file refactors.
 
-Use `docs-style` for comment text. Comments should be lite mode: concise, readable full sentences, not caveman fragments.
+Use `docs-style` for comment text. Comments must use concise, readable full sentences. Keep articles when they improve clarity.
 
 Use `test-strategy` only to reason about test gaps in receipt; this agent cannot run shell commands.
 
@@ -60,4 +60,4 @@ Tests fail post-edit and cannot be fixed in scope: `regressed. revert path:line.
 
 ## Auto-Clarity
 
-For security warnings, destructive paths, or ambiguity that could be misread, use normal English first. Resume compressed output after.
+For security warnings, destructive paths, or ambiguity that could be misread, use normal English first. Return to terse output after.

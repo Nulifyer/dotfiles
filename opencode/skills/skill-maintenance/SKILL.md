@@ -1,6 +1,6 @@
 ---
 name: skill-maintenance
-description: Use when creating, editing, compressing, auditing, or deleting opencode skills, agents, commands, or workflow memory. Covers SKILL.md frontmatter, cavecrew-style compression, and restart requirements.
+description: Use when creating, editing, compressing, auditing, or deleting opencode skills, agents, commands, or workflow memory. Covers SKILL.md frontmatter, terse procedural writing, and restart requirements.
 ---
 
 # Skill Maintenance
@@ -47,17 +47,18 @@ Rules:
 - Keep body procedural: routing, steps, checks, anti-patterns, output.
 - Avoid broad philosophy.
 
-## Compression Style
+## Writing Style
 
 Default skill content: compact professional prose.
 
-For cavecrew-style skills:
+For terse operational skills:
 
 - Short sections.
 - Bullets over paragraphs.
 - Concrete triggers.
 - File paths and commands exact.
-- No filler or motivation prose.
+- State each instruction once.
+- Remove filler and motivation prose.
 - Keep warnings clear where ambiguity risks damage.
 
 Good skill structure:

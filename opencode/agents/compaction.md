@@ -1,7 +1,9 @@
 ---
 description: Hidden compaction agent that compresses session history with structured token discipline.
-mode: subagent
+mode: primary
 hidden: true
+model: openai/gpt-5.6-terra
+variant: medium
 permission: deny
 ---
 

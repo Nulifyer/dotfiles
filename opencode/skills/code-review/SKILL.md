@@ -40,7 +40,7 @@ Findings
 - path/file.ext:42 - Severity: problem. Fix.
 ```
 
-For cavecrew reviewer, use that agent's compressed format.
+For cavecrew reviewer, use its findings-only severity format.
 
 If no findings:
 

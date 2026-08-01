@@ -5,13 +5,13 @@ description: Use when writing or editing README, docs, markdown, MDX, changelog,
 
 # Docs Style
 
-Use lite compression for documentation and comments: concise, professional, readable full sentences.
+Use concise, professional, readable full sentences for documentation and comments.
 
 ## Rules
 
 Remove filler and hedging. Keep articles when they improve readability.
 
-Do not write caveman fragments into docs or comments unless user asks.
+Do not use sentence fragments unless user asks.
 
 Prefer concrete examples over abstract explanation.
 

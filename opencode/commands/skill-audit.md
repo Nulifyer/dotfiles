@@ -1,5 +1,5 @@
 ---
-description: Audit opencode skills for duplicates, stale content, trigger collisions, and compression opportunities.
+description: Audit opencode skills for duplicates, stale content, trigger collisions, and unnecessary verbosity.
 ---
 
 Use the `skill-maintenance` skill if available.
@@ -46,6 +46,6 @@ Check each skill for:
 3. Body has reusable procedure, not one-off notes.
 4. Exact commands, paths, APIs, safety warnings, and verification steps are preserved.
 5. Duplicate or overlapping skills can be merged.
-6. Verbose skills can be compressed in cavecrew style.
+6. Verbose skills can be rewritten as terse procedural instructions.
 
 Extra focus from arguments: `$ARGUMENTS`
