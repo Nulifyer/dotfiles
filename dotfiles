@@ -1197,8 +1197,10 @@ check_active_settings() {
         current_workbench="$(readlink -f -- "$HOME/.local/lib/opencode-workbench/current" 2>/dev/null || true)"
         workbench_version="${current_workbench##*/}"
         [[ "$workbench_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+        local workbench_extension
+        workbench_extension="$(workbench_extension_id "$workbench_version")"
         code --list-extensions --show-versions 2>/dev/null |
-            grep -q "^opencode-workbench\.opencode-workbench-vscode@$workbench_version\$"
+            grep -Fqx "$workbench_extension@$workbench_version"
     fi
 
     local brave_preferences="$HOME/.config/BraveSoftware/Brave-Browser/Default/Preferences"
@@ -1243,6 +1245,17 @@ show_status() {
 
 version_at_least() {
     [[ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n1)" == "$2" ]]
+}
+
+workbench_extension_id() {
+    local release_file="$HOME/.local/lib/opencode-workbench/$1/release.json"
+    local extension_id
+    extension_id="$(jq -er '.vscodeExtension.id | select(test("^[a-z0-9][a-z0-9-]*\\.[a-z0-9][a-z0-9-]*$"))' "$release_file" 2>/dev/null || true)"
+    if [[ -n "$extension_id" ]]; then
+        printf '%s\n' "$extension_id"
+        return
+    fi
+    printf '%s\n' 'opencode-workbench.opencode-workbench-vscode'
 }
 
 workbench_channel() {
@@ -1333,14 +1346,25 @@ workbench_switch_local() {
         printf 'dotfiles: refusing to replace non-link path: %s\n' "$current_link" >&2
         return 1
     fi
+    local extension_id alternate_extension
+    extension_id="$(workbench_extension_id "$version")"
+    if [[ "$extension_id" == nulifyer.opencode-workbench ]]; then
+        alternate_extension=opencode-workbench.opencode-workbench-vscode
+    else
+        alternate_extension=nulifyer.opencode-workbench
+    fi
     code --install-extension \
         "$version_root/opencode-workbench-vscode-$version.vsix" --force || return
+    code --list-extensions 2>/dev/null | grep -Fqx "$extension_id" || return
     ln -s -- "$version" "$temporary_link" || return
     mv -Tf -- "$temporary_link" "$current_link" || return
     systemctl --user daemon-reload || return
     systemctl --user enable --now opencode-workbench.service || return
     systemctl --user restart opencode-workbench.service || return
     workbench_health_check || return
+    if code --list-extensions 2>/dev/null | grep -Fqx "$alternate_extension"; then
+        code --uninstall-extension "$alternate_extension" || return
+    fi
 }
 
 workbench_install() (
@@ -1381,6 +1405,7 @@ workbench_install() (
         (.compatibility.minimumOpenCode | test("^[0-9]+\\.[0-9]+\\.[0-9]+$")) and
         (.compatibility.maximumOpenCodeExclusive | test("^[0-9]+\\.[0-9]+\\.[0-9]+$")) and
         (.compatibility.minimumVSCode | test("^[0-9]+\\.[0-9]+\\.[0-9]+$")) and
+        (.vscodeExtension == null or (.vscodeExtension.id | test("^[a-z0-9][a-z0-9-]*\\.[a-z0-9][a-z0-9-]*$"))) and
         ([.assets[].name] | sort) ==
           (["opencode-plugin.js", "opencode-workbench-vscode-" + $version + ".vsix"] | sort)
     ' "$temporary/release.json" >/dev/null
@@ -1468,7 +1493,7 @@ workbench_status() {
     if command -v code >/dev/null 2>&1; then
         printf 'VS Code extension: '
         code --list-extensions --show-versions 2>/dev/null |
-            grep '^opencode-workbench\.opencode-workbench-vscode@' ||
+            grep -E '^(nulifyer\.opencode-workbench|opencode-workbench\.opencode-workbench-vscode)@' ||
             printf 'not installed\n'
     fi
     if command -v systemctl >/dev/null 2>&1; then
