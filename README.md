@@ -1,6 +1,6 @@
 # dotfiles
 
-Linux configuration managed with Git and GNU Stow.
+Linux configuration managed with Git and a repository-local deployment script.
 
 ## Packages
 
@@ -9,6 +9,7 @@ Linux configuration managed with Git and GNU Stow.
 - `fish` contains self-contained Fish features under `conf.d`.
 - `kde` contains locally generated KDE color schemes.
 - `kitty` contains the Kitty terminal configuration.
+- `opencode` contains the global OpenCode configuration and extensions.
 - `spectacle` contains stable Spectacle preferences.
 - `vscode` contains VS Code settings and a locally generated Nulifyer extension.
 - `zsh` contains a Zsh-native setup using Zsh completion, path arrays, and
@@ -30,7 +31,7 @@ The task runner is not linked into `~/.local/bin`; it only exists in this
 repository. It is a small Bash dispatcher, so Make is not required.
 
 ```text
-./dotfiles link         Resolve conflicts and refresh Stow links
+./dotfiles link         Resolve conflicts and refresh configured links
 ./dotfiles apply        Apply KDE and other non-linkable settings
 ./dotfiles theme NAME   Regenerate local theme files from colors.json
 ./dotfiles check        Validate files, generated output, links, and active state
@@ -45,19 +46,15 @@ keep either version. Keeping the target imports it into the repository before
 linking, while keeping the repository replaces the target. A directory at a
 managed file path aborts instead of being deleted recursively.
 
-Preview the complete Stow layout without modifying the filesystem:
+`link-config.json` declares every source and destination, so repository paths
+stay shallow and application-oriented instead of mirroring the home directory.
+The `file` strategy links one file, `contents` links the files below a source
+directory, and `directory` links the source directory itself. OpenCode uses a
+directory link so its tools and locally installed JavaScript dependencies share
+one real module-resolution tree.
 
-```sh
-stow --simulate --verbose --target="$HOME" --no-folding \
-    alacritty bash fish kde kitty spectacle vscode zsh opencode
-```
-
-Remove the managed links:
-
-```sh
-stow --delete --target="$HOME" --no-folding \
-    alacritty bash fish kde kitty spectacle vscode zsh opencode
-```
+`unlink` removes only links that still point into this repository. It leaves
+regular files and unrelated application state untouched.
 
 Fish's generated `fish_variables` file remains local and is not tracked.
 
@@ -77,12 +74,12 @@ checks still run and the Arch package portion is skipped.
 
 ## Repository internals
 
-Layer-one directories without a leading dot are Stow packages. Any future
-repository-only directory must use a leading dot and is never passed to Stow.
-`.theme` contains the renderer and VS Code role templates. The root
-`colors.json` catalog and `packages.arch` manifest are repository inputs rather
-than Stow packages. Generated palette files are ignored by Git and must be
-created locally with `./dotfiles theme NAME`.
+Layer-one deployment directories are listed in `link-config.json`; visible
+directories without a deployment are rejected by `check`. `.theme` contains
+the renderer and VS Code role templates. The root `colors.json` catalog,
+`link-config.json`, and `packages.arch` are repository inputs. Generated
+palette files are ignored by Git and must be created locally with
+`./dotfiles theme NAME`.
 
 ## KDE
 
@@ -116,20 +113,20 @@ commands:
 
 One selection locally generates Fish, Bash, Zsh, Kitty, Alacritty, KDE, VS Code,
 and OpenCode files from the same palette. Each generated file lives in its
-owning Stow package and is ignored by Git. Repository-local selection state
-lives under `.theme/local`. The catalog, renderer, templates, and application
-configurations remain visible in repository diffs.
+owning deployment directory and is ignored by Git. Repository-local selection
+state lives under `.theme/local`. The catalog, renderer, templates, and
+application configurations remain visible in repository diffs.
 
 Generated output is organized by owner:
 
-- `alacritty/.config/alacritty/theme.generated.toml`
-- `bash/.config/bash/theme.generated.sh`
-- `fish/.config/fish/themes/current.fish`
-- `kde/.local/share/color-schemes`
-- `kitty/.config/kitty/theme.generated.conf`
-- `opencode/.config/opencode/themes/nulifyer.json`
-- `vscode/.vscode/extensions/nulifyer.nulifyer-theme-1.2.0`
-- `zsh/.config/zsh/theme.generated.zsh`
+- `alacritty/theme.generated.toml`
+- `bash/theme.generated.sh`
+- `fish/themes/current.fish`
+- `kde/*.colors`
+- `kitty/theme.generated.conf`
+- `opencode/themes/nulifyer.json`
+- `vscode/extension`
+- `zsh/theme.generated.zsh`
 
 `link` and `check` require current generated output and report how to create it
 when it is missing. `update` regenerates the locally selected theme after

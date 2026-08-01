@@ -17,10 +17,10 @@ CATALOG_PATH = THEME_ROOT.parent / "colors.json"
 VSCODE_TEMPLATE_ROOT = THEME_ROOT / "vscode"
 HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
 VSCODE_EXTENSION_PATH = Path(
-    "vscode/.vscode/extensions/nulifyer.nulifyer-theme-1.2.0"
+    "vscode/extension"
 )
 OPENCODE_THEME_PATH = Path(
-    "opencode/.config/opencode/themes/nulifyer.json"
+    "opencode/themes/nulifyer.json"
 )
 
 ROLE_DEFAULTS = {
@@ -668,22 +668,22 @@ def main() -> int:
     vscode_package, vscode_theme = render_vscode(key, theme, context)
     local_state_root = output_root / ".theme/local"
     vscode_root = output_root / VSCODE_EXTENSION_PATH
-    kde_root = output_root / "kde/.local/share/color-schemes"
+    kde_root = output_root / "kde"
 
     outputs = {
-        output_root / "fish/.config/fish/themes/current.fish": (
+        output_root / "fish/themes/current.fish": (
             render_fish(key, theme, context)
         ),
-        output_root / "bash/.config/bash/theme.generated.sh": (
+        output_root / "bash/theme.generated.sh": (
             render_shell(key, theme, context)
         ),
-        output_root / "zsh/.config/zsh/theme.generated.zsh": (
+        output_root / "zsh/theme.generated.zsh": (
             render_shell(key, theme, context)
         ),
-        output_root / "kitty/.config/kitty/theme.generated.conf": (
+        output_root / "kitty/theme.generated.conf": (
             render_kitty(key, theme, context)
         ),
-        output_root / "alacritty/.config/alacritty/theme.generated.toml": (
+        output_root / "alacritty/theme.generated.toml": (
             render_alacritty(key, theme)
         ),
         local_state_root / "variant": theme["variant"] + "\n",

@@ -3,7 +3,6 @@ required bash
 required git
 required jq
 required python
-required stow
 
 # Applications or platform components with managed configuration.
 managed alacritty

@@ -1,17 +1,19 @@
-# Fish maintains this universal-variable database automatically.
-/fish/.config/fish/fish_variables
-
 # Local Python validation artifacts.
 __pycache__/
 *.pyc
 
 # Locally generated from the tracked root colors.json catalog.
 /.theme/local/
-/alacritty/.config/alacritty/theme.generated.toml
-/bash/.config/bash/theme.generated.sh
-/fish/.config/fish/themes/current.fish
-/kde/.local/share/color-schemes/
-/kitty/.config/kitty/theme.generated.conf
-/opencode/.config/opencode/themes/nulifyer.json
-/vscode/.vscode/extensions/nulifyer.nulifyer-theme-1.2.0/
-/zsh/.config/zsh/theme.generated.zsh
+/alacritty/theme.generated.toml
+/bash/theme.generated.sh
+/fish/themes/current.fish
+/kde/
+/kitty/theme.generated.conf
+/opencode/themes/nulifyer.json
+/opencode/.gitignore
+/opencode/bun.lock
+/opencode/node_modules/
+/opencode/package-lock.json
+/opencode/package.json
+/vscode/extension/
+/zsh/theme.generated.zsh

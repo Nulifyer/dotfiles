@@ -8,17 +8,7 @@ readonly DOTFILES_ROOT="$(
     pwd -P
 )"
 readonly DOTFILES_TARGET="${DOTFILES_TARGET:-$HOME}"
-readonly -a DOTFILES_PACKAGES=(
-    alacritty
-    bash
-    fish
-    kde
-    kitty
-    spectacle
-    vscode
-    zsh
-    opencode
-)
+readonly LINK_CONFIG="$DOTFILES_ROOT/link-config.json"
 readonly THEME_CATALOG="$DOTFILES_ROOT/colors.json"
 readonly THEME_RENDERER="$DOTFILES_ROOT/.theme/render.py"
 readonly THEME_LOCAL_STATE="$DOTFILES_ROOT/.theme/local"
@@ -71,18 +61,18 @@ usage() {
 Usage: ./dotfiles COMMAND
 
 Commands:
-  link         Create or refresh GNU Stow links
+  link         Create or refresh links from link-config.json
   apply        Apply settings that cannot safely be linked
   theme        Generate local theme files from colors.json
   check        Validate source files, generated files, and installed links
   doctor       Report required and optional setup dependencies
   update       Pull with --ff-only, then link, apply, and validate
   status       Show repository and package status
-  unlink       Remove the managed Stow links
+  unlink       Remove links managed by link-config.json
   help         Show this help
 
 Environment:
-  DOTFILES_TARGET  Override the Stow target (default: $HOME)
+  DOTFILES_TARGET  Override the deployment target (default: $HOME)
 EOF
 }
 
@@ -112,7 +102,6 @@ doctor_command() {
         'required|git'
         'required|jq'
         'required|python3'
-        'required|stow'
         'managed|alacritty'
         'managed|fish'
         'managed|kitty'
@@ -331,18 +320,124 @@ link_matches() {
         [[ "$(readlink -f -- "$target")" == "$(readlink -f -- "$source")" ]]
 }
 
+link_points_into_repository() {
+    local target=$1
+    [[ -L "$target" ]] || return 1
+    local destination
+    destination="$(readlink -m -- "$(dirname -- "$target")/$(readlink -- "$target")")"
+    [[ "$destination" == "$DOTFILES_ROOT/"* ]]
+}
+
+deployment_rows() {
+    jq -r '.deployments[] | [.name, .source, .target, .strategy] | @tsv' \
+        "$LINK_CONFIG"
+}
+
+deployment_preserve_paths() {
+    local name=$1
+    jq -r --arg name "$name" \
+        '.deployments[] | select(.name == $name) | .preserve[]?' \
+        "$LINK_CONFIG"
+}
+
+deployment_target_root() {
+    local target=$1
+    if [[ "$target" == . ]]; then
+        printf '%s\n' "$DOTFILES_TARGET"
+    else
+        printf '%s/%s\n' "$DOTFILES_TARGET" "$target"
+    fi
+}
+
+path_is_safe_relative() {
+    local value=$1
+    [[ -n "$value" && "$value" != /* && "$value" != .. &&
+        "$value" != ../* && "$value" != */.. && "$value" != */../* ]]
+}
+
+validate_link_config() {
+    jq -e '
+        (.deployments | type == "array" and length > 0) and
+        ([.deployments[].name] | length == (unique | length)) and
+        all(.deployments[];
+            (.name | type == "string" and length > 0) and
+            (.source | type == "string" and length > 0) and
+            (.target | type == "string" and length > 0) and
+            (.strategy == "file" or .strategy == "contents" or
+                .strategy == "directory") and
+            ((.preserve // []) | type == "array") and
+            all((.preserve // [])[]; type == "string" and length > 0)
+        )
+    ' "$LINK_CONFIG" >/dev/null || {
+        printf 'dotfiles: invalid deployment manifest: %s\n' \
+            "$LINK_CONFIG" >&2
+        return 1
+    }
+
+    local name source target strategy preserve
+    while IFS=$'\t' read -r name source target strategy; do
+        if ! path_is_safe_relative "$source" ||
+            ! path_is_safe_relative "$target"; then
+            printf 'dotfiles: unsafe deployment path for %s\n' "$name" >&2
+            return 1
+        fi
+        if [[ "$strategy" == file &&
+            ! -f "$DOTFILES_ROOT/$source" &&
+            ! -L "$DOTFILES_ROOT/$source" ]]; then
+            printf 'dotfiles: deployment source is missing: %s\n' \
+                "$DOTFILES_ROOT/$source" >&2
+            return 1
+        elif [[ "$strategy" != file && ! -d "$DOTFILES_ROOT/$source" ]]; then
+            printf 'dotfiles: deployment source is missing: %s\n' \
+                "$DOTFILES_ROOT/$source" >&2
+            return 1
+        fi
+        while IFS= read -r preserve; do
+            if ! path_is_safe_relative "$preserve"; then
+                printf 'dotfiles: unsafe preserve path for %s: %s\n' \
+                    "$name" "$preserve" >&2
+                return 1
+            fi
+        done < <(deployment_preserve_paths "$name")
+    done < <(deployment_rows)
+}
+
 replace_link_conflicts() {
-    local package source relative target choice
+    local name source_root target_root strategy source relative target choice
     local failed=false
     local -a conflict_sources=()
     local -a conflict_targets=()
     local -a conflict_choices=()
 
-    for package in "${DOTFILES_PACKAGES[@]}"; do
-        while IFS= read -r -d '' source; do
-            relative="${source#"$DOTFILES_ROOT/$package/"}"
-            target="$DOTFILES_TARGET/$relative"
+    while IFS=$'\t' read -r name source_root target_root strategy; do
+        [[ "$strategy" != directory ]] || continue
+        if [[ "$strategy" == file ]]; then
+            source="$DOTFILES_ROOT/$source_root"
+            target="$(deployment_target_root "$target_root")"
             link_matches "$source" "$target" && continue
+            if link_points_into_repository "$target"; then
+                rm -f -- "$target"
+                continue
+            fi
+            if [[ -d "$target" && ! -L "$target" ]]; then
+                printf 'dotfiles: refusing to replace directory: %s\n' \
+                    "$target" >&2
+                failed=true
+            elif [[ -e "$target" || -L "$target" ]]; then
+                conflict_sources+=("$source")
+                conflict_targets+=("$target")
+            fi
+            continue
+        fi
+        target_root="$(deployment_target_root "$target_root")"
+        while IFS= read -r -d '' source; do
+            relative="${source#"$DOTFILES_ROOT/$source_root/"}"
+            target="$target_root/$relative"
+            link_matches "$source" "$target" && continue
+            if link_points_into_repository "$target"; then
+                rm -f -- "$target"
+                continue
+            fi
 
             if [[ -d "$target" && ! -L "$target" ]]; then
                 printf 'dotfiles: refusing to replace directory: %s\n' \
@@ -353,10 +448,10 @@ replace_link_conflicts() {
                 conflict_targets+=("$target")
             fi
         done < <(
-            find "$DOTFILES_ROOT/$package" \
+            find "$DOTFILES_ROOT/$source_root" \
                 \( -type f -o -type l \) -print0
         )
-    done
+    done < <(deployment_rows)
 
     [[ "$failed" == false ]] || return 1
 
@@ -407,28 +502,189 @@ replace_link_conflicts() {
     done
 }
 
+path_is_preserved() {
+    local relative=$1
+    shift
+    local preserve
+    for preserve in "$@"; do
+        if [[ "$relative" == "$preserve" ||
+            "$relative" == "$preserve/"* ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+migrate_directory_target() {
+    local name=$1
+    local source=$2
+    local target=$3
+    local -a preserve_paths=()
+    mapfile -t preserve_paths < <(deployment_preserve_paths "$name")
+
+    local preserve source_path target_path
+    for preserve in "${preserve_paths[@]}"; do
+        source_path="$source/$preserve"
+        target_path="$target/$preserve"
+        if [[ -e "$target_path" || -L "$target_path" ]]; then
+            if [[ -e "$source_path" || -L "$source_path" ]]; then
+                printf 'dotfiles: cannot preserve %s; source already exists: %s\n' \
+                    "$target_path" "$source_path" >&2
+                return 1
+            fi
+        fi
+    done
+
+    local installed relative expected failed=false
+    while IFS= read -r -d '' installed; do
+        relative="${installed#"$target/"}"
+        path_is_preserved "$relative" "${preserve_paths[@]}" && continue
+        expected="$source/$relative"
+        if [[ ! -f "$expected" && ! -L "$expected" ]]; then
+            printf 'dotfiles: unmanaged file blocks directory deployment: %s\n' \
+                "$installed" >&2
+            failed=true
+        elif ! link_matches "$expected" "$installed" &&
+            ! { [[ -f "$installed" && ! -L "$installed" ]] &&
+                cmp -s -- "$expected" "$installed"; }; then
+            printf 'dotfiles: file differs before directory deployment: %s\n' \
+                "$installed" >&2
+            failed=true
+        fi
+    done < <(find "$target" \( -type f -o -type l \) -print0)
+    [[ "$failed" == false ]] || return 1
+
+    printf 'Migrating %s runtime state into %s...\n' "$name" "$source"
+    for preserve in "${preserve_paths[@]}"; do
+        source_path="$source/$preserve"
+        target_path="$target/$preserve"
+        if [[ -e "$target_path" || -L "$target_path" ]]; then
+            mkdir -p -- "$(dirname -- "$source_path")"
+            mv -- "$target_path" "$source_path"
+        fi
+    done
+
+    while IFS= read -r -d '' installed; do
+        relative="${installed#"$target/"}"
+        path_is_preserved "$relative" "${preserve_paths[@]}" && continue
+        rm -f -- "$installed"
+    done < <(find "$target" \( -type f -o -type l \) -print0)
+
+    local directory
+    while IFS= read -r -d '' directory; do
+        rmdir -- "$directory"
+    done < <(find "$target" -depth -type d -print0)
+}
+
+deploy_contents() {
+    local source_root=$1
+    local target_root=$2
+    local source relative target
+    while IFS= read -r -d '' source; do
+        relative="${source#"$source_root/"}"
+        target="$target_root/$relative"
+        link_matches "$source" "$target" && continue
+        mkdir -p -- "$(dirname -- "$target")"
+        ln -sr -- "$source" "$target"
+    done < <(find "$source_root" \( -type f -o -type l \) -print0)
+}
+
+deploy_file() {
+    local source=$1
+    local target=$2
+    link_matches "$source" "$target" && return
+    mkdir -p -- "$(dirname -- "$target")"
+    ln -sr -- "$source" "$target"
+}
+
+deploy_directory() {
+    local name=$1
+    local source=$2
+    local target=$3
+    link_matches "$source" "$target" && return
+
+    if [[ -d "$target" && ! -L "$target" ]]; then
+        migrate_directory_target "$name" "$source" "$target"
+    elif link_points_into_repository "$target"; then
+        local old_source preserve old_path new_path
+        old_source="$(readlink -f -- "$target")"
+        printf 'Relocating %s directory deployment to %s...\n' \
+            "$name" "$source"
+        while IFS= read -r preserve; do
+            old_path="$old_source/$preserve"
+            new_path="$source/$preserve"
+            if [[ ! -e "$old_path" && ! -L "$old_path" ]]; then
+                continue
+            fi
+            if [[ -e "$new_path" || -L "$new_path" ]]; then
+                printf 'dotfiles: cannot relocate %s; destination exists: %s\n' \
+                    "$old_path" "$new_path" >&2
+                return 1
+            fi
+            mkdir -p -- "$(dirname -- "$new_path")"
+            mv -- "$old_path" "$new_path"
+        done < <(deployment_preserve_paths "$name")
+        rm -f -- "$target"
+    elif [[ -e "$target" || -L "$target" ]]; then
+        printf 'dotfiles: target blocks directory deployment: %s\n' \
+            "$target" >&2
+        return 1
+    fi
+
+    mkdir -p -- "$(dirname -- "$target")"
+    ln -sr -- "$source" "$target"
+}
+
 link_packages() {
-    require_command stow
+    require_command jq
     require_generated_theme
+    validate_link_config
     replace_link_conflicts
-    printf 'Linking dotfile packages into %s...\n' "$DOTFILES_TARGET"
-    stow \
-        --dir="$DOTFILES_ROOT" \
-        --target="$DOTFILES_TARGET" \
-        --no-folding \
-        --restow \
-        "${DOTFILES_PACKAGES[@]}"
+    printf 'Deploying dotfiles into %s...\n' "$DOTFILES_TARGET"
+
+    local name source target strategy target_root
+    while IFS=$'\t' read -r name source target strategy; do
+        target_root="$(deployment_target_root "$target")"
+        if [[ "$strategy" == file ]]; then
+            deploy_file "$DOTFILES_ROOT/$source" "$target_root"
+        elif [[ "$strategy" == contents ]]; then
+            deploy_contents "$DOTFILES_ROOT/$source" "$target_root"
+        else
+            deploy_directory "$name" "$DOTFILES_ROOT/$source" "$target_root"
+        fi
+    done < <(deployment_rows)
 }
 
 unlink_packages() {
-    require_command stow
+    require_command jq
+    validate_link_config
     printf 'Removing managed links from %s...\n' "$DOTFILES_TARGET"
-    stow \
-        --dir="$DOTFILES_ROOT" \
-        --target="$DOTFILES_TARGET" \
-        --no-folding \
-        --delete \
-        "${DOTFILES_PACKAGES[@]}"
+
+    local name source_root target strategy target_root source relative installed
+    while IFS=$'\t' read -r name source_root target strategy; do
+        target_root="$(deployment_target_root "$target")"
+        if [[ "$strategy" == directory ]]; then
+            if link_matches "$DOTFILES_ROOT/$source_root" "$target_root"; then
+                rm -f -- "$target_root"
+            fi
+            continue
+        elif [[ "$strategy" == file ]]; then
+            if link_matches "$DOTFILES_ROOT/$source_root" "$target_root"; then
+                rm -f -- "$target_root"
+            fi
+            continue
+        fi
+        while IFS= read -r -d '' source; do
+            relative="${source#"$DOTFILES_ROOT/$source_root/"}"
+            installed="$target_root/$relative"
+            if link_matches "$source" "$installed"; then
+                rm -f -- "$installed"
+            fi
+        done < <(
+            find "$DOTFILES_ROOT/$source_root" \
+                \( -type f -o -type l \) -print0
+        )
+    done < <(deployment_rows)
 }
 
 theme_current() {
@@ -535,7 +791,7 @@ EOF
     local scheme_target
     local scheme
     IFS= read -r scheme <"$THEME_LOCAL_STATE/kde-scheme"
-    scheme_source="$DOTFILES_ROOT/kde/.local/share/color-schemes/$scheme.colors"
+    scheme_source="$DOTFILES_ROOT/kde/$scheme.colors"
     scheme_target="$HOME/.local/share/color-schemes/$scheme.colors"
     if [[ "$DOTFILES_TARGET" == "$HOME" ]] &&
         link_matches "$scheme_source" "$scheme_target"; then
@@ -560,19 +816,22 @@ check_json() {
     local json_file
     local -a json_files=(
         "$THEME_CATALOG"
+        "$LINK_CONFIG"
         "$DOTFILES_ROOT/.theme/vscode/package.json"
         "$DOTFILES_ROOT/.theme/vscode/workbench.json"
         "$DOTFILES_ROOT/.theme/vscode/tokens.json"
         "$DOTFILES_ROOT/.theme/vscode/semantic.json"
-        "$DOTFILES_ROOT/vscode/.vscode/extensions/nulifyer.nulifyer-theme-1.2.0/package.json"
-        "$DOTFILES_ROOT/vscode/.vscode/extensions/nulifyer.nulifyer-theme-1.2.0/themes/nulifyer.json"
-        "$DOTFILES_ROOT/vscode/.config/Code/User/settings.json"
-        "$DOTFILES_ROOT/opencode/.config/opencode/themes/nulifyer.json"
+        "$DOTFILES_ROOT/vscode/extension/package.json"
+        "$DOTFILES_ROOT/vscode/extension/themes/nulifyer.json"
+        "$DOTFILES_ROOT/vscode/settings.json"
+        "$DOTFILES_ROOT/opencode/themes/nulifyer.json"
     )
 
     for json_file in "${json_files[@]}"; do
         jq -e . "$json_file" >/dev/null
     done
+
+    validate_link_config
 
     jq -e '
         length > 0 and
@@ -597,15 +856,15 @@ check_json() {
 check_shell() {
     bash -n \
         "$DOTFILES_ROOT/dotfiles" \
-        "$DOTFILES_ROOT/bash/.bashrc" \
-        "$DOTFILES_ROOT/bash/.bash_profile"
+        "$DOTFILES_ROOT/bash/bashrc" \
+        "$DOTFILES_ROOT/bash/bash_profile"
 
     fish -n \
-        "$DOTFILES_ROOT/fish/.config/fish/config.fish" \
-        "$DOTFILES_ROOT/fish/.config/fish/conf.d/"*.fish
+        "$DOTFILES_ROOT/fish/config.fish" \
+        "$DOTFILES_ROOT/fish/conf.d/"*.fish
 
     if command -v zsh >/dev/null 2>&1; then
-        zsh -n "$DOTFILES_ROOT/zsh/.zshrc"
+        zsh -n "$DOTFILES_ROOT/zsh/zshrc"
     fi
 
     python3 -c '
@@ -625,8 +884,8 @@ import pathlib
 import tomllib
 
 for name in (
-    "'"$DOTFILES_ROOT/alacritty/.config/alacritty/alacritty.toml"'",
-    "'"$DOTFILES_ROOT/alacritty/.config/alacritty/theme.generated.toml"'",
+    "'"$DOTFILES_ROOT/alacritty/alacritty.toml"'",
+    "'"$DOTFILES_ROOT/alacritty/theme.generated.toml"'",
 ):
     with pathlib.Path(name).open("rb") as stream:
         tomllib.load(stream)
@@ -663,24 +922,19 @@ check_package_manifest() {
     [[ "$failed" == false ]]
 }
 
-check_package_layout() {
-    local directory expected package
-    local known
+check_deployment_layout() {
+    local directory package name source target strategy
+    local -A expected_packages=()
+
+    while IFS=$'\t' read -r name source target strategy; do
+        expected_packages["${source%%/*}"]=1
+    done < <(deployment_rows)
 
     for directory in "$DOTFILES_ROOT"/*/; do
         package="${directory%/}"
         package="${package##*/}"
-        known=false
-
-        for expected in "${DOTFILES_PACKAGES[@]}"; do
-            if [[ "$package" == "$expected" ]]; then
-                known=true
-                break
-            fi
-        done
-
-        if [[ "$known" != true ]]; then
-            printf 'dotfiles: visible directory is not a Stow package: %s\n' \
+        if [[ -z "${expected_packages[$package]:-}" ]]; then
+            printf 'dotfiles: visible directory has no deployment: %s\n' \
                 "$package" >&2
             return 1
         fi
@@ -691,28 +945,49 @@ check_generated_theme() {
     require_generated_theme
 }
 
-check_stow() {
+check_links() {
     local failed=false
-    local package source relative target
+    local name source_root target strategy target_root source relative installed
     local -A expected_targets=()
     local -A target_directories=()
 
-    for package in "${DOTFILES_PACKAGES[@]}"; do
-        while IFS= read -r -d '' source; do
-            relative="${source#"$DOTFILES_ROOT/$package/"}"
-            target="$DOTFILES_TARGET/$relative"
-            expected_targets["$target"]=1
-            target_directories["$(dirname -- "$target")"]=1
-            if ! link_matches "$source" "$target"; then
+    while IFS=$'\t' read -r name source_root target strategy; do
+        target_root="$(deployment_target_root "$target")"
+        if [[ "$strategy" == directory ]]; then
+            expected_targets["$target_root"]=1
+            target_directories["$(dirname -- "$target_root")"]=1
+            if ! link_matches "$DOTFILES_ROOT/$source_root" "$target_root"; then
+                printf 'dotfiles: directory-link drift: %s -> %s\n' \
+                    "$target_root" "$DOTFILES_ROOT/$source_root" >&2
+                failed=true
+            fi
+            continue
+        elif [[ "$strategy" == file ]]; then
+            expected_targets["$target_root"]=1
+            target_directories["$(dirname -- "$target_root")"]=1
+            if ! link_matches "$DOTFILES_ROOT/$source_root" "$target_root"; then
                 printf 'dotfiles: link drift: %s -> %s\n' \
-                    "$target" "$source" >&2
+                    "$target_root" "$DOTFILES_ROOT/$source_root" >&2
+                failed=true
+            fi
+            continue
+        fi
+
+        while IFS= read -r -d '' source; do
+            relative="${source#"$DOTFILES_ROOT/$source_root/"}"
+            installed="$target_root/$relative"
+            expected_targets["$installed"]=1
+            target_directories["$(dirname -- "$installed")"]=1
+            if ! link_matches "$source" "$installed"; then
+                printf 'dotfiles: link drift: %s -> %s\n' \
+                    "$installed" "$source" >&2
                 failed=true
             fi
         done < <(
-            find "$DOTFILES_ROOT/$package" \
+            find "$DOTFILES_ROOT/$source_root" \
                 \( -type f -o -type l \) -print0
         )
-    done
+    done < <(deployment_rows)
 
     local directory installed_link
     local raw_destination resolved_destination
@@ -764,8 +1039,8 @@ check_all() {
     check_shell
     check_toml
     check_package_manifest
-    check_package_layout
-    check_stow
+    check_deployment_layout
+    check_links
     check_active_settings
     printf 'All local checks passed.\n'
 }
@@ -773,7 +1048,8 @@ check_all() {
 show_status() {
     printf 'Repository: %s\n' "$DOTFILES_ROOT"
     printf 'Target:     %s\n' "$DOTFILES_TARGET"
-    printf 'Packages:   %s\n' "${DOTFILES_PACKAGES[*]}"
+    printf 'Deployments: %s\n' \
+        "$(jq -r '[.deployments[].name] | join(" ")' "$LINK_CONFIG")"
     printf '\nGit status:\n'
     git -C "$DOTFILES_ROOT" status --short
     printf '\nConfigured MCP servers:\n'

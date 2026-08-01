@@ -1,0 +1,101 @@
+{
+  "deployments": [
+    {
+      "name": "alacritty",
+      "source": "alacritty",
+      "target": ".config/alacritty",
+      "strategy": "contents"
+    },
+    {
+      "name": "bash-profile",
+      "source": "bash/bash_profile",
+      "target": ".bash_profile",
+      "strategy": "file"
+    },
+    {
+      "name": "bashrc",
+      "source": "bash/bashrc",
+      "target": ".bashrc",
+      "strategy": "file"
+    },
+    {
+      "name": "bash-theme",
+      "source": "bash/theme.generated.sh",
+      "target": ".config/bash/theme.generated.sh",
+      "strategy": "file"
+    },
+    {
+      "name": "fish",
+      "source": "fish",
+      "target": ".config/fish",
+      "strategy": "contents"
+    },
+    {
+      "name": "kde",
+      "source": "kde",
+      "target": ".local/share/color-schemes",
+      "strategy": "contents"
+    },
+    {
+      "name": "kitty-config",
+      "source": "kitty/kitty.conf",
+      "target": ".config/kitty/kitty.conf",
+      "strategy": "file"
+    },
+    {
+      "name": "kitty-theme",
+      "source": "kitty/theme.generated.conf",
+      "target": ".config/kitty/theme.generated.conf",
+      "strategy": "file"
+    },
+    {
+      "name": "terminal-environment",
+      "source": "kitty/terminal.conf",
+      "target": ".config/environment.d/terminal.conf",
+      "strategy": "file"
+    },
+    {
+      "name": "spectacle",
+      "source": "spectacle/spectaclerc",
+      "target": ".config/spectaclerc",
+      "strategy": "file"
+    },
+    {
+      "name": "vscode-settings",
+      "source": "vscode/settings.json",
+      "target": ".config/Code/User/settings.json",
+      "strategy": "file"
+    },
+    {
+      "name": "vscode-theme",
+      "source": "vscode/extension",
+      "target": ".vscode/extensions/nulifyer.nulifyer-theme-1.2.0",
+      "strategy": "contents"
+    },
+    {
+      "name": "zshrc",
+      "source": "zsh/zshrc",
+      "target": ".zshrc",
+      "strategy": "file"
+    },
+    {
+      "name": "zsh-theme",
+      "source": "zsh/theme.generated.zsh",
+      "target": ".config/zsh/theme.generated.zsh",
+      "strategy": "file"
+    },
+    {
+      "name": "opencode",
+      "source": "opencode",
+      "target": ".config/opencode",
+      "strategy": "directory",
+      "preserve": [
+        ".gitignore",
+        "bun.lock",
+        "node_modules",
+        "package-lock.json",
+        "package.json"
+      ]
+    }
+  ]
+}
