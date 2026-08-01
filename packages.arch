@@ -7,6 +7,7 @@ required python
 # Applications or platform components with managed configuration.
 managed alacritty
 managed fish
+managed fzf
 managed kconfig
 managed kitty
 managed plasma-workspace
@@ -21,4 +22,3 @@ optional bat
 optional chafa
 optional curl
 optional eza
-optional fzf

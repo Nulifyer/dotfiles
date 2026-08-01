@@ -203,6 +203,40 @@ def resolve_expression(expression: str, context: dict[str, str]) -> str:
     return value + alpha if separator else value
 
 
+def fzf_default_opts(context: dict[str, str]) -> str:
+    colors = {
+        "fg": context["fg"],
+        "bg": context["bgBase"],
+        "hl": context["match"],
+        "fg+": context["fg"],
+        "bg+": context["selection"],
+        "hl+": context["accent"],
+        "info": context["fgMuted"],
+        "prompt": context["accent"],
+        "pointer": context["accent"],
+        "marker": context["success"],
+        "spinner": context["accent"],
+        "header": context["fgMuted"],
+        "footer": context["fgMuted"],
+        "border": context["accent"],
+        "label": context["accent"],
+        "query": context["fg"],
+        "gutter": context["bgBase"],
+        "separator": context["bgBorder"],
+        "scrollbar": context["bgBorder"],
+    }
+    color_spec = ",".join(f"{name}:{value}" for name, value in colors.items())
+    return " ".join(
+        (
+            f"--color={color_spec}",
+            "--pointer=›",
+            "--marker=✓",
+            "--scrollbar=│",
+            "--info=inline-right",
+        )
+    )
+
+
 def render_vscode(
     key: str, theme: dict[str, Any], context: dict[str, str]
 ) -> tuple[str, str]:
@@ -346,6 +380,12 @@ def render_fish(
         f"set -g nulifyer_theme_display_name {json.dumps(theme['name'])}",
         f"set -g nulifyer_theme_variant {theme['variant']}",
         f"set -gx BAT_THEME {json.dumps(theme['bat_theme'])}",
+        (
+            "set -gx FZF_DEFAULT_OPTS "
+            f"{json.dumps(fzf_default_opts(context), ensure_ascii=False)}"
+        ),
+        f"set -g nulifyer_fzf_fg {without_hash(context['fg'])}",
+        f"set -g nulifyer_fzf_muted {without_hash(context['fgMuted'])}",
         f"set -g nulifyer_prompt_os {prompt['os'].upper()}",
         f"set -g nulifyer_prompt_user {prompt['user'].upper()}",
         f"set -g nulifyer_prompt_path {prompt['path'].upper()}",
@@ -420,6 +460,7 @@ def render_shell(
         "NULIFYER_PROMPT_PATH_HEX": "#" + prompt["path"].upper(),
         "NULIFYER_PROMPT_GIT_HEX": "#" + prompt["git"].upper(),
         "NULIFYER_PROMPT_END_HEX": context["fgMuted"],
+        "FZF_DEFAULT_OPTS": fzf_default_opts(context),
     }
     unset_palette = not (palette := theme.get("lutgen_palette"))
     if palette:
@@ -601,9 +642,11 @@ def render_kde(
                 "activeBackground": rgb_csv(context["selection"]),
                 "activeBlend": rgb_csv(context["fg"]),
                 "activeForeground": rgb_csv(context["fg"]),
+                "frame": rgb_csv(context["accent"]),
                 "inactiveBackground": rgb_csv(context["bgBase"]),
                 "inactiveBlend": rgb_csv(context["fgMuted"]),
                 "inactiveForeground": rgb_csv(context["fgMuted"]),
+                "inactiveFrame": rgb_csv(context["bgBase"]),
             },
         )
     )

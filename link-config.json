@@ -1,6 +1,12 @@
 {
   "deployments": [
     {
+      "name": "applications",
+      "source": "applications",
+      "target": ".local/share/applications",
+      "strategy": "contents"
+    },
+    {
       "name": "alacritty",
       "source": "alacritty",
       "target": ".config/alacritty",

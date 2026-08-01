@@ -5,6 +5,7 @@ Linux configuration managed with Git and a repository-local deployment script.
 ## Packages
 
 - `alacritty` contains the Alacritty terminal configuration.
+- `applications` contains desktop launchers and KDE global shortcuts.
 - `bash` contains a Bash-native setup with Bash history, completion, and prompt.
 - `fish` contains self-contained Fish features under `conf.d`.
 - `kde` contains locally generated KDE color schemes.
@@ -91,6 +92,21 @@ state lives directly in `./dotfiles`: `apply` writes the managed keys and
 ```sh
 ./dotfiles apply
 ```
+
+## Project picker
+
+Press `Ctrl+Alt+P` in Plasma or run `zpick` from Fish to search the direct
+children of `$Z_PROJECTS_ROOT`, which defaults to `~/Projects`. Candidates are
+streamed into `fzf` as they are enumerated.
+
+- Press `Enter` to open the selected project with `code`.
+- Press `Ctrl+E` to open the selected project in KDE's default terminal.
+- Press `Esc` to close the picker without opening anything.
+
+The popup uses the managed Kitty configuration for a centered, titlebarless
+window. `Ctrl+E` still honors KDE's configured default terminal. The global
+`fzf` palette, focused-window outline, and picker highlights follow the shared
+theme accent; Gruvbox uses its yellow accent.
 
 ## Shared themes
 

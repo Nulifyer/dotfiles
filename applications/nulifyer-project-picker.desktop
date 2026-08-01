@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Project Picker
+Comment=Search projects and open them in VS Code or a terminal
+TryExec=kitty
+Exec=kitty --class nulifyer-project-picker --title "Project Picker" --override remember_window_size=no --override initial_window_width=72c --override initial_window_height=13c fish -c zpick
+Icon=system-search
+Terminal=false
+Categories=Development;
+Keywords=project;search;code;terminal;
+OnlyShowIn=KDE;
+StartupNotify=false
+X-KDE-Shortcuts=Ctrl+Alt+P

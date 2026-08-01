@@ -27,7 +27,7 @@ readonly -a KDE_SETTINGS=(
     "kdeglobals|General|toolBarFont|$KDE_FONT"
     'kdeglobals|KDE|AnimationDurationFactor|0.25'
     'kdeglobals|KDE|contrast|4'
-    'kdeglobals|KDE|frameContrast|0.2'
+    'kdeglobals|KDE|frameContrast|0'
     "kdeglobals|WM|activeFont|$KDE_FONT"
     'kdeglobals|KFileDialog Settings|Allow Expansion|false'
     'kdeglobals|KFileDialog Settings|Automatically select filename extension|true'
@@ -47,6 +47,18 @@ readonly -a KDE_SETTINGS=(
     'kdeglobals|PreviewSettings|MaximumRemoteSize|0'
     'kwinrc|TabBox|HighlightWindows|false'
     'kwinrc|TabBox|LayoutName|thumbnail_grid'
+    'kwinrc|org.kde.kdecoration2|BorderSize|None'
+    'kwinrc|org.kde.kdecoration2|BorderSizeAuto|false'
+    'breezerc|Common|OutlineEnabled|true'
+    'breezerc|Windeco|DrawBorderOnMaximizedWindows|true'
+    'kwinrulesrc|nulifyer-project-picker|Description|Centered project picker'
+    'kwinrulesrc|nulifyer-project-picker|Enabled|true'
+    'kwinrulesrc|nulifyer-project-picker|placement|5'
+    'kwinrulesrc|nulifyer-project-picker|placementrule|2'
+    'kwinrulesrc|nulifyer-project-picker|types|1'
+    'kwinrulesrc|nulifyer-project-picker|wmclass|nulifyer-project-picker'
+    'kwinrulesrc|nulifyer-project-picker|wmclasscomplete|false'
+    'kwinrulesrc|nulifyer-project-picker|wmclassmatch|1'
 )
 readonly -a KDE_NESTED_SETTINGS=(
     'powerdevilrc|AC|Display|DimDisplayIdleTimeoutSec|-1'
@@ -104,7 +116,11 @@ doctor_command() {
         'required|python3'
         'managed|alacritty'
         'managed|fish'
+        'managed|fzf'
+        'managed|kbuildsycoca6'
+        'managed|kreadconfig6'
         'managed|kitty'
+        'managed|plasma-apply-colorscheme'
         'managed|kwriteconfig6'
         'managed|spectacle'
         'managed|code'
@@ -113,7 +129,6 @@ doctor_command() {
         'optional|chafa'
         'optional|curl'
         'optional|eza'
-        'optional|fzf'
     )
 
     printf 'Commands:\n'
@@ -197,24 +212,85 @@ kde_apply_color_scheme() {
         return 1
     fi
 
-    local group=''
-    local line key value
-    while IFS= read -r line; do
-        if [[ "$line" =~ ^\[(.+)\]$ ]]; then
-            group="${BASH_REMATCH[1]}"
-        elif [[ -n "$group" && "$line" == *=* ]]; then
-            key="${line%%=*}"
-            value="${line#*=}"
-            if [[ "$group" == General && "$key" == Name ]]; then
-                continue
-            fi
-            kwriteconfig6 --file kdeglobals --group "$group" \
-                --key "$key" -- "$value"
+    require_command plasma-apply-colorscheme
+
+    local current_scheme scheme
+    current_scheme="$(
+        kreadconfig6 --file kdeglobals --group General --key ColorScheme
+    )"
+    scheme="$(basename -- "$scheme_file" .colors)"
+
+    # Force Plasma to reapply the current scheme so KWin receives the color
+    # change notification when a generated scheme is updated in place.
+    kwriteconfig6 --file kdeglobals --group General --key ColorScheme \
+        -- __nulifyer_refresh__
+    if ! plasma-apply-colorscheme "$scheme" >/dev/null; then
+        kwriteconfig6 --file kdeglobals --group General --key ColorScheme \
+            -- "$current_scheme"
+        return 1
+    fi
+}
+
+breeze_project_picker_exception_group() {
+    local index group enabled pattern exception_type hide_title_bar mask
+    local first_free=''
+
+    for ((index = 0; index < 100; index++)); do
+        group="Windeco Exception $index"
+        enabled="$(kreadconfig6 --file breezerc --group "$group" \
+            --key Enabled 2>/dev/null)"
+        pattern="$(kreadconfig6 --file breezerc --group "$group" \
+            --key ExceptionPattern 2>/dev/null)"
+        exception_type="$(kreadconfig6 --file breezerc --group "$group" \
+            --key ExceptionType 2>/dev/null)"
+        hide_title_bar="$(kreadconfig6 --file breezerc --group "$group" \
+            --key HideTitleBar 2>/dev/null)"
+        mask="$(kreadconfig6 --file breezerc --group "$group" \
+            --key Mask 2>/dev/null)"
+
+        if [[ "$pattern" == nulifyer-project-picker ]]; then
+            printf '%s\n' "$group"
+            return
         fi
-    done <"$scheme_file"
+        if [[ -z "$first_free" && -z "$enabled" && -z "$pattern" &&
+            -z "$exception_type" && -z "$hide_title_bar" && -z "$mask" ]]; then
+            first_free=$group
+        fi
+    done
+
+    [[ -n "$first_free" ]] || return 1
+    printf '%s\n' "$first_free"
+}
+
+apply_project_picker_window_rules() {
+    local exception_group
+    exception_group="$(breeze_project_picker_exception_group)" || {
+        printf 'dotfiles: no free Breeze window exception slot\n' >&2
+        return 1
+    }
+    kwriteconfig6 --file breezerc --group "$exception_group" \
+        --key Enabled -- true
+    kwriteconfig6 --file breezerc --group "$exception_group" \
+        --key ExceptionPattern -- nulifyer-project-picker
+    kwriteconfig6 --file breezerc --group "$exception_group" \
+        --key ExceptionType -- 0
+    kwriteconfig6 --file breezerc --group "$exception_group" \
+        --key HideTitleBar -- true
+    kwriteconfig6 --file breezerc --group "$exception_group" \
+        --key Mask -- 0
+
+    local rule_id=nulifyer-project-picker
+    local rules
+    rules="$(kreadconfig6 --file kwinrulesrc --group General --key rules)"
+    if [[ ",$rules," != *",$rule_id,"* ]]; then
+        rules="${rules:+$rules,}$rule_id"
+        kwriteconfig6 --file kwinrulesrc --group General --key rules -- "$rules"
+    fi
 }
 
 apply_kde_settings() {
+    require_command kbuildsycoca6
+
     local entry
     kde_apply_color_scheme
 
@@ -224,14 +300,37 @@ apply_kde_settings() {
     for entry in "${KDE_NESTED_SETTINGS[@]}"; do
         kde_write_nested_setting "$entry"
     done
+    apply_project_picker_window_rules
     kwriteconfig6 --file kdeglobals --group Icons --key Theme \
         -- "$(kde_icon_theme)"
 
     if command -v qdbus6 >/dev/null 2>&1; then
         qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true
+        if qdbus6 org.kde.kglobalaccel >/dev/null 2>&1; then
+            qdbus6 org.kde.kglobalaccel /kglobalaccel \
+                org.kde.KGlobalAccel.unregister \
+                nulifyer-project-picker.desktop _launch >/dev/null 2>&1 || true
+        fi
     fi
+    kbuildsycoca6 >/dev/null
 
     printf 'Applied portable KDE settings and the selected color scheme.\n'
+}
+
+apply_brave_settings() {
+    local preferences="$DOTFILES_TARGET/.config/BraveSoftware/Brave-Browser/Default/Preferences"
+    [[ -f "$preferences" ]] || return
+
+    local temporary
+    temporary="$(mktemp "$preferences.tmp.XXXXXX")"
+    if ! jq '.browser.custom_chrome_frame = false' \
+        "$preferences" >"$temporary"; then
+        rm -f -- "$temporary"
+        return 1
+    fi
+    chmod --reference="$preferences" "$temporary"
+    mv -f -- "$temporary" "$preferences"
+    printf 'Applied Brave native window decorations.\n'
 }
 
 kde_check_value() {
@@ -303,6 +402,25 @@ check_kde_settings() {
     done
     kde_check_value kdeglobals Icons Theme "$(kde_icon_theme)" || failed=true
 
+    local exception_group
+    exception_group="$(breeze_project_picker_exception_group)"
+    if [[ -z "$exception_group" ]]; then
+        printf 'dotfiles: Breeze project picker exception is missing\n' >&2
+        failed=true
+    else
+        kde_check_value breezerc "$exception_group" Enabled true || failed=true
+        kde_check_value breezerc "$exception_group" ExceptionType 0 || failed=true
+        kde_check_value breezerc "$exception_group" HideTitleBar true || failed=true
+        kde_check_value breezerc "$exception_group" Mask 0 || failed=true
+    fi
+
+    local rules
+    rules="$(kreadconfig6 --file kwinrulesrc --group General --key rules)"
+    if [[ ",$rules," != *',nulifyer-project-picker,'* ]]; then
+        printf 'dotfiles: KWin project picker placement rule is missing\n' >&2
+        failed=true
+    fi
+
     if [[ ! -r "$state_root/kde-scheme" ]]; then
         printf 'dotfiles: generated KDE scheme state is missing\n' >&2
         failed=true
@@ -311,6 +429,38 @@ check_kde_settings() {
     fi
 
     [[ "$failed" == false ]]
+}
+
+check_kde_project_picker() {
+    command -v qdbus6 >/dev/null 2>&1 || return 0
+    qdbus6 org.kde.kglobalaccel >/dev/null 2>&1 || return 0
+
+    local actions
+    actions="$(
+        qdbus6 --literal org.kde.kglobalaccel /kglobalaccel \
+            org.kde.KGlobalAccel.allActionsForComponent \
+            nulifyer-project-picker.desktop 2>/dev/null
+    )" || true
+    if [[ "$actions" != *'"_launch"'* ]]; then
+        printf 'dotfiles: KDE project picker shortcut is not registered\n' >&2
+        return 1
+    fi
+
+    local shortcut_info
+    shortcut_info="$(
+        qdbus6 --literal org.kde.kglobalaccel \
+            /component/nulifyer_project_picker_desktop \
+            org.kde.kglobalaccel.Component.allShortcutInfos 2>/dev/null
+    )" || true
+    local active_keys=''
+    if [[ "$shortcut_info" =~ \[Argument:\ ai\ \{([^}]*)\}\] ]]; then
+        active_keys=${BASH_REMATCH[1]}
+    fi
+    # 201326672 is Qt::CTRL | Qt::ALT | Qt::Key_P.
+    if [[ "$active_keys" != 201326672 ]]; then
+        printf 'dotfiles: KDE project picker shortcut is not Ctrl+Alt+P\n' >&2
+        return 1
+    fi
 }
 
 link_matches() {
@@ -808,6 +958,7 @@ apply_settings() {
     else
         printf 'Skipping KDE settings: Plasma configuration tools are unavailable.\n'
     fi
+    apply_brave_settings
 }
 
 check_json() {
@@ -876,6 +1027,18 @@ for name in (
 ):
     compile(pathlib.Path(name).read_text(), pathlib.Path(name).name, "exec")
 '
+}
+
+check_desktop_entries() {
+    local desktop_file="$DOTFILES_ROOT/applications/nulifyer-project-picker.desktop"
+    grep -qx 'Type=Application' "$desktop_file"
+    grep -qx 'Exec=kitty --class nulifyer-project-picker --title "Project Picker" --override remember_window_size=no --override initial_window_width=72c --override initial_window_height=13c fish -c zpick' \
+        "$desktop_file"
+    grep -qx 'X-KDE-Shortcuts=Ctrl+Alt+P' "$desktop_file"
+
+    if command -v desktop-file-validate >/dev/null 2>&1; then
+        desktop-file-validate "$desktop_file"
+    fi
 }
 
 check_toml() {
@@ -1028,7 +1191,14 @@ check_active_settings() {
             grep -q '^nulifyer\.nulifyer-theme@1\.2\.0$'
     fi
 
+    local brave_preferences="$HOME/.config/BraveSoftware/Brave-Browser/Default/Preferences"
+    if [[ -f "$brave_preferences" ]]; then
+        jq -e '.browser.custom_chrome_frame == false' \
+            "$brave_preferences" >/dev/null
+    fi
+
     check_kde_settings
+    check_kde_project_picker
 }
 
 check_all() {
@@ -1037,6 +1207,7 @@ check_all() {
     check_generated_theme
     check_json
     check_shell
+    check_desktop_entries
     check_toml
     check_package_manifest
     check_deployment_layout

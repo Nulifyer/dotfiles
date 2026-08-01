@@ -105,6 +105,7 @@
   "terminal.integrated.stickyScroll.enabled": false,
   "vsicons.dontShowNewVersionMessage": true,
   "window.commandCenter": false,
+  "window.titleBarStyle": "native",
   "workbench.activityBar.location": "top",
   "workbench.colorTheme": "Nulifyer",
   "workbench.editor.empty.hint": "hidden",
