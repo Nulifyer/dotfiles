@@ -77,6 +77,9 @@
     "jupyter-notebook": "left"
   },
   "notebook.lineNumbers": "on",
+  "opencodeWorkbench.serverEnvironmentFile": "~/.config/opencode-workbench/server.env",
+  "opencodeWorkbench.serverUrl": "http://127.0.0.1:4096",
+  "opencodeWorkbench.serverUsername": "opencode",
   "python.analysis.typeCheckingMode": "standard",
   "redhat.telemetry.enabled": false,
   "scm.defaultViewMode": "tree",

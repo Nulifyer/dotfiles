@@ -11,6 +11,8 @@ Linux configuration managed with Git and a repository-local deployment script.
 - `kde` contains locally generated KDE color schemes.
 - `kitty` contains the Kitty terminal configuration.
 - `opencode` contains the global OpenCode configuration and extensions.
+- `opencode-workbench` selects the Workbench release channel and shared server
+  service.
 - `spectacle` contains stable Spectacle preferences.
 - `vscode` contains VS Code settings and a locally generated Nulifyer extension.
 - `zsh` contains a Zsh-native setup using Zsh completion, path arrays, and
@@ -24,6 +26,7 @@ Run the repository-local task script:
 ./dotfiles doctor
 ./dotfiles theme gruvbox
 ./dotfiles link
+./dotfiles workbench install
 ./dotfiles apply
 ./dotfiles check
 ```
@@ -35,6 +38,7 @@ repository. It is a small Bash dispatcher, so Make is not required.
 ./dotfiles link         Resolve conflicts and refresh configured links
 ./dotfiles apply        Apply KDE and other non-linkable settings
 ./dotfiles theme NAME   Regenerate local theme files from colors.json
+./dotfiles workbench    Install or update the stable OpenCode Workbench release
 ./dotfiles check        Validate files, generated output, links, and active state
 ./dotfiles doctor       Report required and optional dependencies
 ./dotfiles update       Pull, link, apply, and validate
@@ -56,6 +60,27 @@ one real module-resolution tree.
 
 `unlink` removes only links that still point into this repository. It leaves
 regular files and unrelated application state untouched.
+
+## OpenCode Workbench
+
+`./dotfiles workbench install` resolves the latest stable release from
+`nulifyer/opencode-workbench`. It verifies GitHub build provenance, validates
+the release manifest and checksums, checks local OpenCode and VS Code versions,
+installs the plugin and extension side-by-side, creates an owner-only server
+password, and starts the shared loopback service. `./dotfiles workbench update`
+rolls forward through the same verified path. Failed health checks restore the
+previous release; `./dotfiles workbench rollback VERSION` selects any retained
+version explicitly.
+
+The dotfiles repository stores the release channel and integration policy;
+executable source and release artifacts remain in the separate Workbench
+repository. Weekly compatibility CI and dependency update PRs track OpenCode
+and VS Code API changes before a new stable Workbench release is tagged.
+
+Run `oc` from Fish to attach a terminal client to the same server used by VS
+Code. OpenCode remains the owner of sessions, providers, agents, tools, and
+transcripts. Workbench runtime preferences and skill candidates stay under
+`~/.local/share/opencode-workbench` and are not committed.
 
 Fish's generated `fish_variables` file remains local and is not tracked.
 

@@ -9,23 +9,29 @@
   "lsp": {},
   "permission": {
     "read": {
-      ".env": "allow",
-      ".env.*": "allow",
-      ".env-*": "allow"
+      ".env": "ask",
+      ".env.*": "ask",
+      ".env-*": "ask"
     },
     "doom_loop": "ask",
+    "memory.*": "ask",
+    "skill_candidate.*": "ask",
+    "vscode.read": "ask",
+    "vscode.open_file": "ask",
+    "vscode.execute_terminal": "ask",
+    "vscode.open_url": "ask",
     "external_directory": {
       "*": "ask",
       "/tmp/**": "allow",
       "/var/tmp/**": "allow",
       "~/.cache/**": "allow",
-      "~/Projects/**": "allow"
+      "~/Projects/**": "ask"
     },
     "bash": {
       "*": "ask",
-      // Explicitly approved network operations.
-      "git push": "allow",
-      "git push *": "allow",
+      // Remote mutation always requires confirmation.
+      "git push": "ask",
+      "git push *": "ask",
       "git status *": "allow",
       "git diff *": "allow",
       // Hard denies: destructive or unsafe commands. Keep last so they override allow/ask rules.
@@ -52,6 +58,7 @@
     },
   },
   "plugin": [
-    "@prevalentware/opencode-goal-plugin"
+    "@prevalentware/opencode-goal-plugin",
+    "file://{env:HOME}/.local/lib/opencode-workbench/current/opencode-plugin.js"
   ],
 }
