@@ -76,7 +76,6 @@ Commands:
   link         Create or refresh links from link-config.json
   apply        Apply settings that cannot safely be linked
   theme        Generate local theme files from colors.json
-  workbench    Install, update, inspect, or roll back OpenCode Workbench
   check        Validate source files, generated files, and installed links
   doctor       Report required and optional setup dependencies
   update       Pull with --ff-only, then link, apply, and validate
@@ -112,9 +111,7 @@ doctor_command() {
     local class package
     local -a command_specs=(
         'required|bash'
-        'required|curl'
         'required|git'
-        'required|gh'
         'required|jq'
         'required|python3'
         'required|sha256sum'
@@ -1193,14 +1190,6 @@ check_active_settings() {
     if command -v code >/dev/null 2>&1; then
         code --list-extensions --show-versions 2>/dev/null |
             grep -q '^nulifyer\.nulifyer-theme@1\.2\.0$'
-        local workbench_version current_workbench
-        current_workbench="$(readlink -f -- "$HOME/.local/lib/opencode-workbench/current" 2>/dev/null || true)"
-        workbench_version="${current_workbench##*/}"
-        [[ "$workbench_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-        local workbench_extension
-        workbench_extension="$(workbench_extension_id "$workbench_version")"
-        code --list-extensions --show-versions 2>/dev/null |
-            grep -Fqx "$workbench_extension@$workbench_version"
     fi
 
     local brave_preferences="$HOME/.config/BraveSoftware/Brave-Browser/Default/Preferences"
@@ -1243,293 +1232,10 @@ show_status() {
     fi
 }
 
-version_at_least() {
-    [[ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n1)" == "$2" ]]
-}
-
-workbench_extension_id() {
-    local release_file="$HOME/.local/lib/opencode-workbench/$1/release.json"
-    local extension_id
-    extension_id="$(jq -er '.vscodeExtension.id | select(test("^[a-z0-9][a-z0-9-]*\\.[a-z0-9][a-z0-9-]*$"))' "$release_file" 2>/dev/null || true)"
-    if [[ -n "$extension_id" ]]; then
-        printf '%s\n' "$extension_id"
-        return
-    fi
-    printf '%s\n' 'opencode-workbench.opencode-workbench-vscode'
-}
-
-workbench_channel() {
-    local channel
-    IFS= read -r channel <"$DOTFILES_ROOT/opencode-workbench/channel"
-    if [[ "$channel" != stable ]]; then
-        printf 'dotfiles: unsupported OpenCode Workbench channel: %s\n' "$channel" >&2
-        return 1
-    fi
-    printf '%s\n' "$channel"
-}
-
-workbench_latest_version() {
-    workbench_channel >/dev/null
-    curl --fail --silent --show-error \
-        'https://api.github.com/repos/nulifyer/opencode-workbench/releases/latest' |
-        jq -er '.tag_name | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$")) | ltrimstr("v")'
-}
-
-workbench_prepare_environment() {
-    local environment_root="$HOME/.config/opencode-workbench"
-    local environment_file="$environment_root/server.env"
-    mkdir -p -- "$environment_root"
-    chmod 0700 -- "$environment_root"
-    if [[ ! -e "$environment_file" && ! -L "$environment_file" ]]; then
-        local temporary password
-        temporary="$environment_root/.server.env-$RANDOM"
-        password="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
-        (umask 077 && printf 'OPENCODE_SERVER_USERNAME=opencode\nOPENCODE_SERVER_PASSWORD=%s\n' "$password" >"$temporary")
-        mv -T -- "$temporary" "$environment_file"
-    fi
-    if [[ ! -f "$environment_file" || -L "$environment_file" ||
-        "$(stat -c %u -- "$environment_file")" != "$(id -u)" ||
-        "$(stat -c %a -- "$environment_file")" != 600 ]]; then
-        printf 'dotfiles: server environment must be an owner-only regular file: %s\n' "$environment_file" >&2
-        return 1
-    fi
-    grep -Eq '^OPENCODE_SERVER_USERNAME=opencode$' "$environment_file"
-    grep -Eq '^OPENCODE_SERVER_PASSWORD=[0-9a-f]{64}$' "$environment_file"
-}
-
-workbench_health_check() (
-    set -euo pipefail
-    local environment_file="$HOME/.config/opencode-workbench/server.env"
-    local username password netrc response
-    username="$(grep '^OPENCODE_SERVER_USERNAME=' "$environment_file" | cut -d= -f2-)"
-    password="$(grep '^OPENCODE_SERVER_PASSWORD=' "$environment_file" | cut -d= -f2-)"
-    netrc="$(mktemp)"
-    trap 'rm -f -- "$netrc"' EXIT
-    chmod 0600 -- "$netrc"
-    printf 'machine 127.0.0.1 login %s password %s\n' "$username" "$password" >"$netrc"
-    if ! response="$(curl --fail --silent --retry 10 --retry-all-errors \
-        --retry-delay 1 --netrc-file "$netrc" --get \
-        --data-urlencode "directory=$HOME" "http://127.0.0.1:4096/session")"; then
-        printf 'dotfiles: OpenCode Workbench server health request failed\n' >&2
-        return 1
-    fi
-    jq -e 'type == "array"' <<<"$response" >/dev/null
-)
-
-workbench_verify_local_release() {
-    local version=$1
-    local version_root="$HOME/.local/lib/opencode-workbench/$version"
-    [[ -d "$version_root" && ! -L "$version_root" ]] || return 1
-    local asset
-    for asset in opencode-plugin.js \
-        "opencode-workbench-vscode-$version.vsix" release.json SHA256SUMS; do
-        [[ -f "$version_root/$asset" && ! -L "$version_root/$asset" ]] || return 1
-        gh attestation verify "$version_root/$asset" \
-            --repo Nulifyer/opencode-workbench \
-            --signer-workflow Nulifyer/opencode-workbench/.github/workflows/release.yml \
-            --source-ref "refs/tags/v$version" --deny-self-hosted-runners >/dev/null || return
-    done
-    (
-        cd -- "$version_root"
-        sha256sum --check SHA256SUMS
-    ) || return
-}
-
-workbench_switch_local() {
-    local version=$1
-    local install_root="$HOME/.local/lib/opencode-workbench"
-    local version_root="$install_root/$version"
-    local current_link="$install_root/current"
-    local temporary_link="$install_root/.current-$RANDOM"
-    workbench_verify_local_release "$version" || return
-    if [[ -e "$current_link" && ! -L "$current_link" ]]; then
-        printf 'dotfiles: refusing to replace non-link path: %s\n' "$current_link" >&2
-        return 1
-    fi
-    local extension_id alternate_extension
-    extension_id="$(workbench_extension_id "$version")"
-    if [[ "$extension_id" == nulifyer.opencode-workbench ]]; then
-        alternate_extension=opencode-workbench.opencode-workbench-vscode
-    else
-        alternate_extension=nulifyer.opencode-workbench
-    fi
-    code --install-extension \
-        "$version_root/opencode-workbench-vscode-$version.vsix" --force || return
-    code --list-extensions 2>/dev/null | grep -Fqx "$extension_id" || return
-    ln -s -- "$version" "$temporary_link" || return
-    mv -Tf -- "$temporary_link" "$current_link" || return
-    systemctl --user daemon-reload || return
-    systemctl --user enable --now opencode-workbench.service || return
-    systemctl --user restart opencode-workbench.service || return
-    workbench_health_check || return
-    if code --list-extensions 2>/dev/null | grep -Fqx "$alternate_extension"; then
-        code --uninstall-extension "$alternate_extension" || return
-    fi
-}
-
-workbench_install() (
-    set -euo pipefail
-    require_command code
-    require_command curl
-    require_command gh
-    require_command jq
-    require_command python3
-    require_command sha256sum
-    require_command systemctl
-
-    local version="${1:-}"
-    if [[ -z "$version" ]]; then
-        version="$(workbench_latest_version)"
-    elif [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        printf 'dotfiles: invalid OpenCode Workbench version: %s\n' "$version" >&2
-        return 2
-    fi
-    local release_url temporary
-    release_url="https://github.com/nulifyer/opencode-workbench/releases/download/v$version"
-    temporary="$(mktemp -d)"
-    trap 'rm -rf -- "$temporary"' EXIT
-
-    local asset
-    for asset in opencode-plugin.js \
-        "opencode-workbench-vscode-$version.vsix" release.json SHA256SUMS; do
-        curl --fail --location --silent --show-error \
-            --output "$temporary/$asset" "$release_url/$asset"
-        gh attestation verify "$temporary/$asset" \
-            --repo Nulifyer/opencode-workbench \
-            --signer-workflow Nulifyer/opencode-workbench/.github/workflows/release.yml \
-            --source-ref "refs/tags/v$version" --deny-self-hosted-runners >/dev/null
-    done
-    jq -e --arg version "$version" '
-        .schemaVersion == 1 and .version == $version and
-        .protocolVersion == 1 and
-        (.compatibility.minimumOpenCode | test("^[0-9]+\\.[0-9]+\\.[0-9]+$")) and
-        (.compatibility.maximumOpenCodeExclusive | test("^[0-9]+\\.[0-9]+\\.[0-9]+$")) and
-        (.compatibility.minimumVSCode | test("^[0-9]+\\.[0-9]+\\.[0-9]+$")) and
-        (.vscodeExtension == null or (.vscodeExtension.id | test("^[a-z0-9][a-z0-9-]*\\.[a-z0-9][a-z0-9-]*$"))) and
-        ([.assets[].name] | sort) ==
-          (["opencode-plugin.js", "opencode-workbench-vscode-" + $version + ".vsix"] | sort)
-    ' "$temporary/release.json" >/dev/null
-    (
-        cd -- "$temporary"
-        sha256sum --check SHA256SUMS
-    )
-    local opencode_version vscode_version minimum_opencode maximum_opencode minimum_vscode
-    opencode_version="$(opencode --version | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)"
-    vscode_version="$(code --version | head -n1)"
-    minimum_opencode="$(jq -r '.compatibility.minimumOpenCode' "$temporary/release.json")"
-    maximum_opencode="$(jq -r '.compatibility.maximumOpenCodeExclusive' "$temporary/release.json")"
-    minimum_vscode="$(jq -r '.compatibility.minimumVSCode' "$temporary/release.json")"
-    version_at_least "$opencode_version" "$minimum_opencode" || {
-        printf 'dotfiles: OpenCode %s is older than required %s\n' "$opencode_version" "$minimum_opencode" >&2
-        return 1
-    }
-    if version_at_least "$opencode_version" "$maximum_opencode"; then
-        printf 'dotfiles: OpenCode %s is newer than supported range ending at %s\n' "$opencode_version" "$maximum_opencode" >&2
-        return 1
-    fi
-    version_at_least "$vscode_version" "$minimum_vscode" || {
-        printf 'dotfiles: VS Code %s is older than required %s\n' "$vscode_version" "$minimum_vscode" >&2
-        return 1
-    }
-
-    local install_root version_root current_link previous_version
-    install_root="$HOME/.local/lib/opencode-workbench"
-    version_root="$install_root/$version"
-    current_link="$install_root/current"
-    previous_version="$(basename -- "$(readlink -f -- "$current_link" 2>/dev/null || true)")"
-    mkdir -p -- "$version_root"
-    install -m 0644 -- "$temporary/opencode-plugin.js" \
-        "$version_root/opencode-plugin.js"
-    install -m 0644 -- "$temporary/opencode-workbench-vscode-$version.vsix" \
-        "$version_root/opencode-workbench-vscode-$version.vsix"
-    install -m 0644 -- "$temporary/release.json" "$version_root/release.json"
-    install -m 0644 -- "$temporary/SHA256SUMS" "$version_root/SHA256SUMS"
-    workbench_prepare_environment
-    if ! workbench_switch_local "$version"; then
-        printf 'dotfiles: Workbench %s failed health check; rolling back\n' "$version" >&2
-        if [[ "$previous_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            workbench_switch_local "$previous_version"
-        else
-            unlink -- "$current_link" 2>/dev/null || true
-            systemctl --user stop opencode-workbench.service || true
-        fi
-        return 1
-    fi
-
-    printf 'Installed OpenCode Workbench %s.\n' "$version"
-)
-
-workbench_rollback() {
-    local version=${1:-}
-    if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        printf 'Usage: ./dotfiles workbench rollback VERSION\n' >&2
-        return 2
-    fi
-    require_command code
-    require_command gh
-    require_command jq
-    require_command sha256sum
-    require_command systemctl
-    workbench_prepare_environment
-    local current previous_version
-    current="$(readlink -f -- "$HOME/.local/lib/opencode-workbench/current" 2>/dev/null || true)"
-    previous_version="${current##*/}"
-    if ! workbench_switch_local "$version"; then
-        printf 'dotfiles: rollback to %s failed health check; restoring %s\n' "$version" "$previous_version" >&2
-        if [[ "$previous_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            workbench_switch_local "$previous_version"
-        fi
-        return 1
-    fi
-    printf 'Rolled back OpenCode Workbench to %s.\n' "$version"
-}
-
-workbench_status() {
-    local channel current
-    channel="$(workbench_channel)"
-    current="$(readlink -f -- "$HOME/.local/lib/opencode-workbench/current" 2>/dev/null || true)"
-    printf 'Release channel:   %s\n' "$channel"
-    printf 'Installed plugin:  %s\n' "${current:-not installed}"
-    if command -v code >/dev/null 2>&1; then
-        printf 'VS Code extension: '
-        code --list-extensions --show-versions 2>/dev/null |
-            grep -E '^(nulifyer\.opencode-workbench|opencode-workbench\.opencode-workbench-vscode)@' ||
-            printf 'not installed\n'
-    fi
-    if command -v systemctl >/dev/null 2>&1; then
-        printf 'Server service:    '
-        systemctl --user is-active opencode-workbench.service 2>/dev/null || true
-    fi
-}
-
-workbench_command() {
-    case "${1:-install}" in
-        install | update)
-            [[ "$#" -le 2 ]] || return 2
-            workbench_install "${2:-}"
-            ;;
-        rollback)
-            [[ "$#" -eq 2 ]] || return 2
-            workbench_rollback "$2"
-            ;;
-        status)
-            [[ "$#" -eq 1 ]] || return 2
-            workbench_status
-            ;;
-        *)
-            printf 'Usage: ./dotfiles workbench [install|update [VERSION]|rollback VERSION|status]\n' >&2
-            return 2
-            ;;
-    esac
-}
-
 update_all() {
     git -C "$DOTFILES_ROOT" pull --ff-only
     theme_command --reload
     link_packages
-    if [[ -L "$HOME/.local/lib/opencode-workbench/current" ]]; then
-        workbench_install
-    fi
     apply_settings
     check_all
 }
@@ -1538,7 +1244,6 @@ main() {
     local command_name="${1:-help}"
 
     if [[ "$command_name" != theme && "$command_name" != doctor &&
-        "$command_name" != workbench &&
         "$#" -gt 1 ]]; then
         printf 'dotfiles: unexpected argument: %s\n' "$2" >&2
         usage >&2
@@ -1560,9 +1265,6 @@ main() {
             ;;
         doctor)
             doctor_command "${@:2}"
-            ;;
-        workbench)
-            workbench_command "${@:2}"
             ;;
         update)
             update_all

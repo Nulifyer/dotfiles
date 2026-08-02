@@ -1,9 +1,7 @@
 # Packages required by the repository task runner and validation.
 required bash
 required coreutils
-required curl
 required git
-required github-cli
 required jq
 required python
 
@@ -23,4 +21,5 @@ managed opencode
 # Enhancements used when installed.
 optional bat
 optional chafa
+optional curl
 optional eza

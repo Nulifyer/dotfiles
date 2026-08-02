@@ -58,7 +58,6 @@
     },
   },
   "plugin": [
-    "@prevalentware/opencode-goal-plugin",
-    "file://{env:HOME}/.local/lib/opencode-workbench/current/opencode-plugin.js"
+    "@prevalentware/opencode-goal-plugin"
   ],
 }

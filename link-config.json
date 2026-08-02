@@ -102,18 +102,6 @@
         "package-lock.json",
         "package.json"
       ]
-    },
-    {
-      "name": "opencode-workbench-channel",
-      "source": "opencode-workbench/channel",
-      "target": ".config/opencode-workbench/channel",
-      "strategy": "file"
-    },
-    {
-      "name": "opencode-workbench-service",
-      "source": "opencode-workbench/systemd/opencode-workbench.service",
-      "target": ".config/systemd/user/opencode-workbench.service",
-      "strategy": "file"
     }
   ]
 }
