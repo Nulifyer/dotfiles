@@ -66,9 +66,13 @@ service.
 
 Run `opencode` normally for the terminal TUI. Terminal sessions remain
 independent from the VS Code Workbench connection. OpenCode remains the owner
-of sessions, providers, agents, tools, and transcripts. Workbench runtime
-preferences and skill candidates stay under `~/.local/share/opencode-workbench`
-and are not committed.
+of sessions, providers, agents, tools, and transcripts. The global
+`skill-development` skill provides the same evidence, proposal, review, and
+manual skill-maintenance flow in terminal sessions. Without a Workbench
+activation host, approved changes remain pending until the user restarts
+OpenCode. Workbench runtime preferences and skill candidates stay under
+`~/.local/share/opencode-workbench` and are not committed; terminal instances
+do not gain those companion-plugin tools merely by loading the skill.
 
 Fish's generated `fish_variables` file remains local and is not tracked.
 

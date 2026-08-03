@@ -1,0 +1,1 @@
+run_id,client,client_version,case_id,fixture_commit,model,reasoning,duration_seconds,input_tokens,output_tokens,tool_calls,approval_prompts,correctness,verification,safety,scope,evidence,efficiency,total_score,result_summary,environment_notes
