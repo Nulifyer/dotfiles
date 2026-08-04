@@ -55,9 +55,6 @@
       "sudo *": "deny",
       "wget*": "deny",
       "xargs*": "deny"
-    },
-  },
-  "plugin": [
-    "@prevalentware/opencode-goal-plugin"
-  ],
+    }
+  }
 }

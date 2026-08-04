@@ -77,40 +77,42 @@
     "jupyter-notebook": "left"
   },
   "notebook.lineNumbers": "on",
+  "opencodeWorkbench.autoApprovePermissions": true,
   "python.analysis.typeCheckingMode": "standard",
   "redhat.telemetry.enabled": false,
   "scm.defaultViewMode": "tree",
-  "terminal.integrated.defaultProfile.linux": "fish",
   "terminal.integrated.allowChords": true,
-  "terminal.integrated.sendKeybindingsToShell": false,
   "terminal.integrated.commandsToSkipShell": [
     "-workbench.action.quickOpen"
   ],
-  "terminal.integrated.shellIntegration.enabled": true,
-  "terminal.integrated.enablePersistentSessions": false,
-  "terminal.integrated.stickyScroll.enabled": false,
-  "terminal.integrated.initialHint": false,
   "terminal.integrated.copyOnSelection": false,
-  "terminal.integrated.rightClickBehavior": "default",
-  "terminal.integrated.middleClickBehavior": "paste",
+  "terminal.integrated.defaultProfile.linux": "fish",
+  "terminal.integrated.enablePersistentSessions": false,
   "terminal.integrated.fontFamily": "CaskaydiaMono NF",
   "terminal.integrated.gpuAcceleration": "auto",
+  "terminal.integrated.initialHint": false,
+  "terminal.integrated.middleClickBehavior": "paste",
   "terminal.integrated.profiles.linux": {
-    "fish": {
-      "path": "/usr/bin/fish",
-      "icon": "terminal"
-    },
     "bash": {
-      "path": "/usr/bin/bash",
-      "icon": "terminal-bash"
+      "icon": "terminal-bash",
+      "path": "/usr/bin/bash"
+    },
+    "fish": {
+      "icon": "terminal",
+      "path": "/usr/bin/fish"
     },
     "zsh": {
-      "path": "/usr/bin/zsh",
-      "icon": "terminal"
+      "icon": "terminal",
+      "path": "/usr/bin/zsh"
     }
   },
+  "terminal.integrated.rightClickBehavior": "default",
+  "terminal.integrated.sendKeybindingsToShell": false,
+  "terminal.integrated.shellIntegration.enabled": true,
+  "terminal.integrated.stickyScroll.enabled": false,
   "vsicons.dontShowNewVersionMessage": true,
   "window.commandCenter": false,
+  "window.customTitleBarVisibility": "never",
   "window.titleBarStyle": "native",
   "workbench.activityBar.location": "top",
   "workbench.browser.searchEngine": "duckduckgo",
@@ -119,6 +121,7 @@
   "workbench.editorAssociations": {
     "*.ipynb": "jupyter-notebook"
   },
+  "workbench.experimental.modernUI": true,
   "workbench.iconTheme": "vscode-icons",
   "workbench.layoutControl.enabled": false,
   "workbench.settings.applyToAllProfiles": [
@@ -129,6 +132,5 @@
   "xml.server.preferBinary": true,
   "zig.zls.enabled": "on",
   "zig.zls.inlayHintsShowParameterName": false,
-  "zig.zls.warnStyle": true,
-  "opencodeWorkbench.autoApprovePermissions": true
+  "zig.zls.warnStyle": true
 }
