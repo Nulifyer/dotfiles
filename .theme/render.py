@@ -564,12 +564,10 @@ def render_kde(
     compact = "".join(part.capitalize() for part in key.split("_"))
     scheme_id = f"Nulifyer{compact}"
     display_name = f"Nulifyer — {theme['name']}"
-    common = {
-        "BackgroundAlternate": rgb_csv(context["selection"]),
-        "BackgroundNormal": rgb_csv(context["bgBase"]),
+    foregrounds = {
         "DecorationFocus": rgb_csv(context["accent"]),
         "DecorationHover": rgb_csv(context["link"]),
-        "ForegroundActive": rgb_csv(context["success"]),
+        "ForegroundActive": rgb_csv(context["accent"]),
         "ForegroundInactive": rgb_csv(context["fgMuted"]),
         "ForegroundLink": rgb_csv(context["link"]),
         "ForegroundNegative": rgb_csv(context["error"]),
@@ -578,13 +576,50 @@ def render_kde(
         "ForegroundPositive": rgb_csv(context["success"]),
         "ForegroundVisited": rgb_csv(context["magenta"]),
     }
-    selection = dict(common)
+    kde_spec = theme.get("kde", {})
+
+    def color_set(
+        name: str, default_background: str, default_alternate: str
+    ) -> dict[str, str]:
+        overrides = kde_spec.get(name, {})
+        return {
+            "BackgroundAlternate": rgb_csv(
+                overrides.get("alternate", default_alternate)
+            ),
+            "BackgroundNormal": rgb_csv(
+                overrides.get("background", default_background)
+            ),
+            **foregrounds,
+        }
+
+    color_sets = {
+        "Button": color_set(
+            "button", context["bgSurface"], context["selection"]
+        ),
+        "Complementary": color_set(
+            "complementary", context["bgMid"], context["bgDarkest"]
+        ),
+        "Header": color_set(
+            "header", context["bgSurface"], context["bgBase"]
+        ),
+        "Header][Inactive": color_set(
+            "header_inactive", context["bgBase"], context["bgSurface"]
+        ),
+        "Tooltip": color_set(
+            "tooltip", context["bgSurface"], context["selection"]
+        ),
+        "View": color_set(
+            "view", context["bgBase"], context["selection"]
+        ),
+        "Window": color_set(
+            "window", context["bgBase"], context["selection"]
+        ),
+    }
+    selection = color_set("selection", context["accent"], context["find"])
     selection.update(
         {
-            "BackgroundAlternate": rgb_csv(context["find"]),
-            "BackgroundNormal": rgb_csv(context["accent"]),
             "ForegroundActive": rgb_csv(context["bgBase"]),
-            "ForegroundInactive": rgb_csv(context["selection"]),
+            "ForegroundInactive": rgb_csv(context["bgBase"]),
             "ForegroundLink": rgb_csv(context["bgBase"]),
             "ForegroundNormal": rgb_csv(context["bgBase"]),
         }
@@ -621,8 +656,8 @@ def render_kde(
             },
         ),
     ]
-    for name in ("Button", "Tooltip", "View", "Window"):
-        lines.extend(section(f"Colors:{name}", common))
+    for name, values in color_sets.items():
+        lines.extend(section(f"Colors:{name}", values))
     lines.extend(section("Colors:Selection", selection))
     lines.extend(
         section(
@@ -667,6 +702,30 @@ def validate_theme(key: str, theme: dict[str, Any]) -> None:
         if set(terminal.get(group, {})) != ansi:
             raise ValueError(f"{key}: terminal.{group} schema is incomplete")
         for value in terminal[group].values():
+            normalize_hex(value)
+    kde_sets = {
+        "button",
+        "complementary",
+        "header",
+        "header_inactive",
+        "selection",
+        "tooltip",
+        "view",
+        "window",
+    }
+    kde_spec = theme.get("kde", {})
+    unknown_sets = set(kde_spec) - kde_sets
+    if unknown_sets:
+        raise ValueError(f"{key}: unknown KDE color sets: {sorted(unknown_sets)}")
+    for set_name, values in kde_spec.items():
+        if not isinstance(values, dict):
+            raise ValueError(f"{key}: kde.{set_name} must be an object")
+        unknown_roles = set(values) - {"background", "alternate"}
+        if unknown_roles:
+            raise ValueError(
+                f"{key}: unknown kde.{set_name} roles: {sorted(unknown_roles)}"
+            )
+        for value in values.values():
             normalize_hex(value)
 
 

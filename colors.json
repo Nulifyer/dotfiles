@@ -710,6 +710,36 @@
         "white": "#EBDBB2"
       }
     },
+    "kde": {
+      "button": {
+        "background": "#3C3836",
+        "alternate": "#2A2827"
+      },
+      "complementary": {
+        "background": "#1B1B1B",
+        "alternate": "#202020"
+      },
+      "header": {
+        "background": "#2A2827",
+        "alternate": "#202020"
+      },
+      "header_inactive": {
+        "background": "#202020",
+        "alternate": "#2A2827"
+      },
+      "tooltip": {
+        "background": "#3C3836",
+        "alternate": "#504945"
+      },
+      "view": {
+        "background": "#202020",
+        "alternate": "#2A2827"
+      },
+      "window": {
+        "background": "#202020",
+        "alternate": "#2A2827"
+      }
+    },
     "vscode": {
       "accent": "yellow",
       "link": "blue",
