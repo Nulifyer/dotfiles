@@ -123,7 +123,8 @@ streamed into `fzf` as they are enumerated.
 The popup uses the managed Kitty configuration for a centered, titlebarless
 window. `Ctrl+E` still honors KDE's configured default terminal. The global
 `fzf` palette, focused-window outline, and picker highlights follow the shared
-theme accent; Gruvbox uses its yellow accent.
+theme accent; Gruvbox uses its yellow accent. A managed KWin rule allows VS
+Code to focus an existing project window under Wayland.
 
 ## Shared themes
 

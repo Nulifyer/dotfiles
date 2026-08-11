@@ -13,6 +13,10 @@ readonly THEME_CATALOG="$DOTFILES_ROOT/colors.json"
 readonly THEME_RENDERER="$DOTFILES_ROOT/.theme/render.py"
 readonly THEME_LOCAL_STATE="$DOTFILES_ROOT/.theme/local"
 readonly KDE_FONT='CaskaydiaMono NF,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0'
+readonly -a KWIN_RULE_IDS=(
+    'nulifyer-project-picker'
+    'visual-studio-code-focus'
+)
 readonly -a KDE_SETTINGS=(
     'kdeglobals|General|BrowserApplication|brave-browser.desktop'
     'kdeglobals|General|TerminalApplication|kitty'
@@ -59,6 +63,14 @@ readonly -a KDE_SETTINGS=(
     'kwinrulesrc|nulifyer-project-picker|wmclass|nulifyer-project-picker'
     'kwinrulesrc|nulifyer-project-picker|wmclasscomplete|false'
     'kwinrulesrc|nulifyer-project-picker|wmclassmatch|1'
+    'kwinrulesrc|visual-studio-code-focus|Description|Allow VS Code activation'
+    'kwinrulesrc|visual-studio-code-focus|Enabled|true'
+    'kwinrulesrc|visual-studio-code-focus|fsplevel|0'
+    'kwinrulesrc|visual-studio-code-focus|fsplevelrule|2'
+    'kwinrulesrc|visual-studio-code-focus|types|1'
+    'kwinrulesrc|visual-studio-code-focus|wmclass|^[Cc]ode$'
+    'kwinrulesrc|visual-studio-code-focus|wmclasscomplete|false'
+    'kwinrulesrc|visual-studio-code-focus|wmclassmatch|3'
 )
 readonly -a KDE_NESTED_SETTINGS=(
     'powerdevilrc|AC|Display|DimDisplayIdleTimeoutSec|-1'
@@ -263,7 +275,7 @@ breeze_project_picker_exception_group() {
     printf '%s\n' "$first_free"
 }
 
-apply_project_picker_window_rules() {
+apply_kde_window_rules() {
     local exception_group
     exception_group="$(breeze_project_picker_exception_group)" || {
         printf 'dotfiles: no free Breeze window exception slot\n' >&2
@@ -280,11 +292,16 @@ apply_project_picker_window_rules() {
     kwriteconfig6 --file breezerc --group "$exception_group" \
         --key Mask -- 0
 
-    local rule_id=nulifyer-project-picker
-    local rules
+    local rule_id rules
+    local rules_changed=false
     rules="$(kreadconfig6 --file kwinrulesrc --group General --key rules)"
-    if [[ ",$rules," != *",$rule_id,"* ]]; then
-        rules="${rules:+$rules,}$rule_id"
+    for rule_id in "${KWIN_RULE_IDS[@]}"; do
+        if [[ ",$rules," != *",$rule_id,"* ]]; then
+            rules="${rules:+$rules,}$rule_id"
+            rules_changed=true
+        fi
+    done
+    if [[ "$rules_changed" == true ]]; then
         kwriteconfig6 --file kwinrulesrc --group General --key rules -- "$rules"
     fi
 }
@@ -301,7 +318,7 @@ apply_kde_settings() {
     for entry in "${KDE_NESTED_SETTINGS[@]}"; do
         kde_write_nested_setting "$entry"
     done
-    apply_project_picker_window_rules
+    apply_kde_window_rules
     kwriteconfig6 --file kdeglobals --group Icons --key Theme \
         -- "$(kde_icon_theme)"
 
@@ -415,12 +432,15 @@ check_kde_settings() {
         kde_check_value breezerc "$exception_group" Mask 0 || failed=true
     fi
 
-    local rules
+    local rule_id rules
     rules="$(kreadconfig6 --file kwinrulesrc --group General --key rules)"
-    if [[ ",$rules," != *',nulifyer-project-picker,'* ]]; then
-        printf 'dotfiles: KWin project picker placement rule is missing\n' >&2
-        failed=true
-    fi
+    for rule_id in "${KWIN_RULE_IDS[@]}"; do
+        if [[ ",$rules," != *",$rule_id,"* ]]; then
+            printf 'dotfiles: KWin rule is missing from the rule list: %s\n' \
+                "$rule_id" >&2
+            failed=true
+        fi
+    done
 
     if [[ ! -r "$state_root/kde-scheme" ]]; then
         printf 'dotfiles: generated KDE scheme state is missing\n' >&2

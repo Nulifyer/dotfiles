@@ -1,5 +1,20 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "lemonade": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Lemonade (swarm)",
+      "options": {
+        "baseURL": "https://lemonade.swarm.nulteck.com/v1",
+        "apiKey": "cQWJKnjjAMaHlwNi-1KIjuyQh6vKGTe_sFWCE0Ixt-c6WB54QrQu68k8pfbnA2Yf"
+      },
+      "models": {
+        "quen3.5-4b-FLM": {
+          "name": "Qwen 3.5 4B npu"
+        }
+      }
+    }
+  },
   "default_agent": "caveboss",
   "small_model": "openai/gpt-5.3-codex-spark",
   "shell": "/usr/bin/fish",
@@ -7,54 +22,152 @@
     "AGENTS.md"
   ],
   "lsp": {},
-  "permission": {
-    "read": {
-      ".env": "ask",
-      ".env.*": "ask",
-      ".env-*": "ask"
+  // Global allows otherwise override the built-in read-only agent defaults.
+  "agent": {
+    "plan": {
+      "permission": {
+        "edit": "deny"
+      }
     },
+    "explore": {
+      "permission": {
+        "edit": "deny",
+        "task": "deny",
+        "todowrite": "deny",
+        "question": "deny"
+      }
+    }
+  },
+  "permission": {
+    // Fail closed for new built-in and MCP tools. More specific rules below
+    // override this because OpenCode uses the last matching rule.
+    "*": "ask",
+
+    // Normal editor and code-navigation tools should not interrupt work.
+    "read": {
+      "*": "allow",
+      "*.env": "ask",
+      "*.env.*": "ask",
+      "*.env-*": "ask",
+      "*.envrc": "ask",
+      "*.env.example": "allow",
+      "*.env.sample": "allow",
+      "*.env.template": "allow"
+    },
+    "edit": {
+      "*": "allow",
+      "*.git/*": "deny",
+      "*.github/workflows/*": "ask",
+      "*.opencode/*": "ask",
+      "*AGENTS.md": "ask",
+      "*opencode.json": "ask",
+      "*opencode.jsonc": "ask",
+      "*.env": "ask",
+      "*.env.*": "ask",
+      "*.env-*": "ask",
+      "*.envrc": "ask",
+      "*.env.example": "allow",
+      "*.env.sample": "allow",
+      "*.env.template": "allow"
+    },
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "lsp": "allow",
+    "todowrite": "allow",
+    "question": "allow",
+    "skill": "allow",
+    "task": {
+      "*": "ask",
+      "explore": "allow",
+      "general": "allow",
+      "cavecrew-*": "allow"
+    },
+
+    // Online documentation lookup is intentionally prompt-free.
+    "websearch": "allow",
+    "webfetch": "allow",
     "doom_loop": "ask",
-    "memory.*": "ask",
-    "skill_candidate.*": "ask",
-    "vscode.read": "ask",
-    "vscode.open_file": "ask",
-    "vscode.execute_terminal": "ask",
-    "vscode.open_url": "ask",
+
+    // MCP tool IDs use underscores, not dots.
+    "memory_*": "ask",
+    "skill_candidate_*": "ask",
+    "vscode_*": "ask",
+    "vscode_read": "allow",
+    "vscode_open_file": "allow",
+
     "external_directory": {
       "*": "ask",
-      "/tmp/**": "allow",
-      "/var/tmp/**": "allow",
-      "~/.cache/**": "allow",
-      "~/Projects/**": "ask"
+      "~/.config/opencode/skills/*": "allow",
+      "~/.local/share/opencode/tool-output/*": "allow",
+      "/tmp/opencode/*": "allow"
     },
+
     "bash": {
       "*": "ask",
-      // Remote mutation always requires confirmation.
-      "git push": "ask",
-      "git push *": "ask",
+
+      // Low-risk inspection used during normal development.
+      "pwd *": "allow",
+      "rg *": "allow",
       "git status *": "allow",
       "git diff *": "allow",
-      // Hard denies: destructive or unsafe commands. Keep last so they override allow/ask rules.
-      ":(){:|:&};:": "deny", // fork bomb, just in case
-      "*; chmod*": "deny",
-      "*; chown*": "deny",
-      "*; dd*": "deny",
-      "*| chmod*": "deny",
-      "*| chown*": "deny",
-      "*| dd*": "deny",
-      "chmod*": "deny",
-      "chown*": "deny",
-      "dd*": "deny",
-      "eval*": "deny",
-      "rm -rf /": "deny",
-      "rm -rf /*": "deny",
-      "rm -rf ~": "deny",
-      "rm -rf ~/*": "deny",
-      "rm*": "deny",
-      "rmdir*": "deny",
+      "git log *": "allow",
+      "git show *": "allow",
+      "git rev-parse *": "allow",
+      "git ls-files *": "allow",
+      "git ls-tree *": "allow",
+      "git cat-file *": "allow",
+      "git grep *": "allow",
+      "git blame *": "allow",
+      "git branch --show-current *": "allow",
+      "git tag --list *": "allow",
+      "git describe *": "allow",
+      "git remote -v": "allow",
+
+      // Risky variants override the read-only-looking Git and rg allows.
+      "rg *--pre*": "ask",
+      "git *--no-index*": "ask",
+      "git *--ext-diff*": "ask",
+      "git *--textconv*": "ask",
+      "git *--output*": "ask",
+      "*>*": "ask",
+      "*<*": "ask",
+
+      // Publishing and all unlisted mutation/execution remain reviewable.
+      "git push *": "ask",
+
+      // Hard-deny only operations that should never be delegated. These are
+      // tripwires, not a substitute for an OS/container sandbox.
+      ":(){:|:&};:": "deny",
+      "eval *": "deny",
       "sudo *": "deny",
-      "wget*": "deny",
-      "xargs*": "deny"
+      "doas *": "deny",
+      "pkexec *": "deny",
+      "su *": "deny",
+      "dd *": "deny",
+      "mkfs* *": "deny",
+      "fdisk *": "deny",
+      "parted *": "deny",
+      "wipefs *": "deny",
+      "mount *": "deny",
+      "umount *": "deny",
+      "shutdown *": "deny",
+      "reboot *": "deny",
+      "poweroff *": "deny",
+      "halt *": "deny",
+      "systemctl poweroff *": "deny",
+      "systemctl reboot *": "deny",
+      "systemctl halt *": "deny",
+      "systemctl suspend *": "deny",
+      "systemctl hibernate *": "deny",
+      "rm -rf /": "deny",
+      "rm -rf -- /": "deny",
+      "rm -fr /": "deny",
+      "rm -fr -- /": "deny",
+      "rm -rf ~": "deny",
+      "rm -rf /home/nulifyer": "deny",
+      "rm -fr ~": "deny",
+      "rm -fr /home/nulifyer": "deny"
     }
   }
 }
