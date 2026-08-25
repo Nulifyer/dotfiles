@@ -36,7 +36,8 @@ fish_add_path \
     $ANDROID_HOME/cmdline-tools/latest/bin \
     ~/.local/bin \
     ~/.cargo/bin \
-    ~/Applications/depot_tools
+    ~/Applications/depot_tools \
+    ~/.bun/bin
 
 # Support !! and !$ from oh-my-fish/plugin-bang-bang.
 function __history_previous_command
@@ -139,3 +140,6 @@ alias rip="expac --timefmt='%Y-%m-%d %T' '%l\t%n %v' | sort | tail -200 | nl"
 alias apt='man pacman'
 alias apt-get='man pacman'
 alias tb='nc termbin.com 9999'
+
+# Pi
+fish_add_path "/home/nulifyer/.local/share/pi-node/node-v22.23.2-linux-x64/bin"
