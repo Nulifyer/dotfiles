@@ -1033,7 +1033,8 @@ check_shell() {
 
     fish -n \
         "$DOTFILES_ROOT/fish/config.fish" \
-        "$DOTFILES_ROOT/fish/conf.d/"*.fish
+        "$DOTFILES_ROOT/fish/conf.d/"*.fish \
+        "$DOTFILES_ROOT/.tests/project_picker.fish"
 
     if command -v zsh >/dev/null 2>&1; then
         zsh -n "$DOTFILES_ROOT/zsh/zshrc"
@@ -1045,9 +1046,12 @@ import pathlib
 for name in (
     "'"$THEME_RENDERER"'",
     "'"$DOTFILES_ROOT/.theme/check_kde.py"'",
+    "'"$DOTFILES_ROOT/fish/tools/project_candidates.py"'",
 ):
     compile(pathlib.Path(name).read_text(), pathlib.Path(name).name, "exec")
 '
+
+    fish "$DOTFILES_ROOT/.tests/project_picker.fish"
 }
 
 check_desktop_entries() {

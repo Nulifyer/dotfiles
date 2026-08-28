@@ -112,9 +112,17 @@ state lives directly in `./dotfiles`: `apply` writes the managed keys and
 
 ## Project picker
 
-Press `Ctrl+Alt+P` in Plasma or run `zpick` from Fish to search the direct
-children of `$Z_PROJECTS_ROOT`, which defaults to `~/Projects`. Candidates are
-streamed into `fzf` as they are enumerated.
+Press `Ctrl+Alt+P` in Plasma or run `zpick` from Fish to search for projects.
+The direct children of `$Z_PROJECTS_ROOT`, which defaults to `~/Projects`, are
+streamed into `fzf` first. The picker then searches the rest of the home
+directory for outermost folders containing `.git`, `.jj`, `.hg`, `.svn`,
+`.vscode`, `.idea`, or `.devcontainer`.
+
+Once the search finds a project marker, it does not descend farther into that
+folder. The home-directory scan does not follow symlinks, and cache,
+application-state, dependency, and build-output folders are skipped. This
+keeps nested packages and generated trees out of the picker while still
+finding projects such as `~/.agents`.
 
 - Press `Enter` to open the selected project with `code`.
 - Press `Ctrl+E` to open the selected project in KDE's default terminal.

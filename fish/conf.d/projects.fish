@@ -10,6 +10,9 @@
 #   zpick                     Search projects in a floating fzf picker
 #   zlink NAME PATH           Link PATH back to ~/Projects/NAME
 
+set -g __z_project_scanner_path \
+    (path normalize (status dirname)/../tools/project_candidates.py)
+
 function __z_projects_root
     if set -q Z_PROJECTS_ROOT; and test -n "$Z_PROJECTS_ROOT"
         printf '%s\n' (string trim --right --chars=/ -- "$Z_PROJECTS_ROOT")
@@ -80,9 +83,33 @@ function zopen --description 'Open a registered project in the selected editor'
     command "$editor" "$project"
 end
 
-function __z_project_candidates
+function __z_discover_project_paths
     set -l projects_root (__z_projects_root)
-    test -d "$projects_root"; or return 1
+
+    if test -d "$projects_root"
+        for project in "$projects_root"/*/ "$projects_root"/.*/
+            test -d "$project"; or continue
+            printf '%s\0' "$project"
+        end
+    end
+
+    command python3 "$__z_project_scanner_path" "$HOME" "$projects_root"
+end
+
+function __z_project_paths
+    set -l seen
+    __z_discover_project_paths | while read --null project
+        set project (string trim --right --chars=/ -- "$project")
+        set -l resolved (path resolve -- "$project")
+        test -n "$resolved"; or continue
+        contains -- "$resolved" $seen; and continue
+
+        set -a seen "$resolved"
+        printf '%s\0' "$project"
+    end
+end
+
+function __z_project_candidates
 
     set -l name_color (set_color --bold normal)
     set -l path_color (set_color brblack)
@@ -94,9 +121,7 @@ function __z_project_candidates
         set path_color (set_color "$nulifyer_fzf_muted")
     end
 
-    for project in "$projects_root"/*/
-        test -d "$project"; or continue
-
+    __z_project_paths | while read --null project
         set -l resolved (path resolve -- "$project")
         test -n "$resolved"; or continue
 
@@ -166,10 +191,13 @@ function zpick --description 'Search registered projects with fzf'
         printf 'zpick: fzf is required\n' >&2
         return 1
     end
-
-    set -l projects_root (__z_projects_root)
-    if not test -d "$projects_root"
-        printf 'zpick: projects directory not found: %s\n' "$projects_root" >&2
+    if not command -q python3
+        printf 'zpick: python3 is required\n' >&2
+        return 1
+    end
+    if not test -r "$__z_project_scanner_path"
+        printf 'zpick: project scanner not found: %s\n' \
+            "$__z_project_scanner_path" >&2
         return 1
     end
 
