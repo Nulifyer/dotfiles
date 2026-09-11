@@ -24,6 +24,19 @@ OPENCODE_THEME_PATH = Path(
 )
 
 SEMANTIC_ROLE_DEFAULTS = {
+    "uiBackground": "bgBase",
+    "uiSurface": "bgSurface",
+    "uiSurfaceMuted": "bgMid",
+    "uiSurfaceSunken": "bgDarkest",
+    "uiBorder": "bgBorder",
+    "uiHover": "bgHover",
+    "textPrimary": "fg",
+    "textDim": "fgDim",
+    "textMuted": "fgMuted",
+    "selectionBackground": "accent",
+    "selectionAlternate": "find",
+    "selectionForeground": "bgBase",
+    "selectionSubtle": "selection",
     "accent": "cyan",
     "link": "green",
     "match": "green",
@@ -202,25 +215,25 @@ def resolve_expression(expression: str, context: dict[str, str]) -> str:
 
 def fzf_default_opts(context: dict[str, str]) -> str:
     colors = {
-        "fg": context["fg"],
-        "bg": context["bgBase"],
+        "fg": context["textPrimary"],
+        "bg": context["uiBackground"],
         "hl": context["match"],
-        "fg+": context["fg"],
-        "bg+": context["selection"],
+        "fg+": context["textPrimary"],
+        "bg+": context["selectionSubtle"],
         "hl+": context["accent"],
-        "info": context["fgMuted"],
+        "info": context["textMuted"],
         "prompt": context["accent"],
         "pointer": context["accent"],
         "marker": context["success"],
         "spinner": context["accent"],
-        "header": context["fgMuted"],
-        "footer": context["fgMuted"],
+        "header": context["textMuted"],
+        "footer": context["textMuted"],
         "border": context["accent"],
         "label": context["accent"],
-        "query": context["fg"],
-        "gutter": context["bgBase"],
-        "separator": context["bgBorder"],
-        "scrollbar": context["bgBorder"],
+        "query": context["textPrimary"],
+        "gutter": context["uiBackground"],
+        "separator": context["uiBorder"],
+        "scrollbar": context["uiBorder"],
     }
     color_spec = ",".join(f"{name}:{value}" for name, value in colors.items())
     return " ".join(
@@ -305,52 +318,52 @@ def render_opencode(context: dict[str, str]) -> str:
         "warning": context["warning"],
         "success": context["success"],
         "info": context["info"],
-        "text": context["fg"],
-        "textMuted": context["fgMuted"],
-        "background": context["bgBase"],
-        "backgroundPanel": context["bgMid"],
-        "backgroundElement": context["bgSurface"],
-        "border": context["bgBorder"],
-        "borderActive": context["fgMuted"],
-        "borderSubtle": context["bgBorder"],
+        "text": context["textPrimary"],
+        "textMuted": context["textMuted"],
+        "background": context["uiBackground"],
+        "backgroundPanel": context["uiSurfaceMuted"],
+        "backgroundElement": context["uiSurface"],
+        "border": context["uiBorder"],
+        "borderActive": context["textMuted"],
+        "borderSubtle": context["uiBorder"],
         "diffAdded": context["success"],
         "diffRemoved": context["error"],
-        "diffContext": context["fgMuted"],
+        "diffContext": context["textMuted"],
         "diffHunkHeader": context["link"],
         "diffHighlightAdded": context["success"],
         "diffHighlightRemoved": context["error"],
         "diffAddedBg": blend_hex(
-            context["bgBase"], context["success"], 18
+            context["uiBackground"], context["success"], 18
         ),
         "diffRemovedBg": blend_hex(
-            context["bgBase"], context["error"], 18
+            context["uiBackground"], context["error"], 18
         ),
-        "diffContextBg": context["bgSurface"],
-        "diffLineNumber": context["fgMuted"],
+        "diffContextBg": context["uiSurface"],
+        "diffLineNumber": context["textMuted"],
         "diffAddedLineNumberBg": blend_hex(
-            context["bgBase"], context["success"], 12
+            context["uiBackground"], context["success"], 12
         ),
         "diffRemovedLineNumberBg": blend_hex(
-            context["bgBase"], context["error"], 12
+            context["uiBackground"], context["error"], 12
         ),
-        "markdownText": context["fg"],
+        "markdownText": context["textPrimary"],
         "markdownHeading": context["accent"],
         "markdownLink": context["link"],
         "markdownLinkText": context["link"],
         "markdownCode": context["success"],
-        "markdownBlockQuote": context["fgMuted"],
+        "markdownBlockQuote": context["textMuted"],
         "markdownEmph": context["error"],
         "markdownStrong": context["accent"],
-        "markdownHorizontalRule": context["bgBorder"],
+        "markdownHorizontalRule": context["uiBorder"],
         "markdownListItem": context["accent"],
         "markdownListEnumeration": context["cyan"],
         "markdownImage": context["link"],
         "markdownImageText": context["cyan"],
-        "markdownCodeBlock": context["fg"],
-        "syntaxComment": context["fgMuted"],
+        "markdownCodeBlock": context["textPrimary"],
+        "syntaxComment": context["textMuted"],
         "syntaxKeyword": context["error"],
         "syntaxFunction": context["accent"],
-        "syntaxVariable": context["fg"],
+        "syntaxVariable": context["textPrimary"],
         "syntaxString": context["success"],
         "syntaxNumber": context["magenta"],
         "syntaxType": context["success"],
@@ -488,13 +501,13 @@ def render_kitty(
         ("cursor", terminal["cursor"]),
         ("url_color", context["link"]),
         ("active_border_color", context["accent"]),
-        ("inactive_border_color", context["bgBorder"]),
+        ("inactive_border_color", context["uiBorder"]),
         ("bell_border_color", context["warning"]),
         ("active_tab_foreground", terminal["bg"]),
         ("active_tab_background", context["accent"]),
         ("inactive_tab_foreground", terminal["fg"]),
-        ("inactive_tab_background", context["bgSurface"]),
-        ("tab_bar_background", context["bgMid"]),
+        ("inactive_tab_background", context["uiSurface"]),
+        ("tab_bar_background", context["uiSurfaceMuted"]),
     ]
     ansi = [
         normal["black"],
@@ -565,11 +578,11 @@ def render_kde(
         "DecorationFocus": rgb_csv(context["accent"]),
         "DecorationHover": rgb_csv(context["link"]),
         "ForegroundActive": rgb_csv(context["accent"]),
-        "ForegroundInactive": rgb_csv(context["fgMuted"]),
+        "ForegroundInactive": rgb_csv(context["textMuted"]),
         "ForegroundLink": rgb_csv(context["link"]),
         "ForegroundNegative": rgb_csv(context["error"]),
         "ForegroundNeutral": rgb_csv(context["warning"]),
-        "ForegroundNormal": rgb_csv(context["fg"]),
+        "ForegroundNormal": rgb_csv(context["textPrimary"]),
         "ForegroundPositive": rgb_csv(context["success"]),
         "ForegroundVisited": rgb_csv(context["magenta"]),
     }
@@ -591,34 +604,38 @@ def render_kde(
 
     color_sets = {
         "Button": color_set(
-            "button", context["bgSurface"], context["selection"]
+            "button", context["uiSurface"], context["selectionSubtle"]
         ),
         "Complementary": color_set(
-            "complementary", context["bgMid"], context["bgDarkest"]
+            "complementary", context["uiSurfaceMuted"], context["uiSurfaceSunken"]
         ),
         "Header": color_set(
-            "header", context["bgSurface"], context["bgBase"]
+            "header", context["uiSurface"], context["uiBackground"]
         ),
         "Header][Inactive": color_set(
-            "header_inactive", context["bgBase"], context["bgSurface"]
+            "header_inactive", context["uiBackground"], context["uiSurface"]
         ),
         "Tooltip": color_set(
-            "tooltip", context["bgSurface"], context["selection"]
+            "tooltip", context["uiSurface"], context["selectionSubtle"]
         ),
         "View": color_set(
-            "view", context["bgBase"], context["selection"]
+            "view", context["uiBackground"], context["selectionSubtle"]
         ),
         "Window": color_set(
-            "window", context["bgBase"], context["selection"]
+            "window", context["uiBackground"], context["selectionSubtle"]
         ),
     }
-    selection = color_set("selection", context["accent"], context["find"])
+    selection = color_set(
+        "selection",
+        context["selectionBackground"],
+        context["selectionAlternate"],
+    )
     selection.update(
         {
-            "ForegroundActive": rgb_csv(context["bgBase"]),
-            "ForegroundInactive": rgb_csv(context["bgBase"]),
-            "ForegroundLink": rgb_csv(context["bgBase"]),
-            "ForegroundNormal": rgb_csv(context["bgBase"]),
+            "ForegroundActive": rgb_csv(context["selectionForeground"]),
+            "ForegroundInactive": rgb_csv(context["selectionForeground"]),
+            "ForegroundLink": rgb_csv(context["selectionForeground"]),
+            "ForegroundNormal": rgb_csv(context["selectionForeground"]),
         }
     )
 
@@ -629,7 +646,7 @@ def render_kde(
         *section(
             "ColorEffects:Disabled",
             {
-                "Color": rgb_csv(context["fgMuted"]),
+                "Color": rgb_csv(context["textMuted"]),
                 "ColorAmount": "0",
                 "ColorEffect": "0",
                 "ContrastAmount": "0.65",
@@ -642,7 +659,7 @@ def render_kde(
             "ColorEffects:Inactive",
             {
                 "ChangeSelectionColor": "true",
-                "Color": rgb_csv(context["fgMuted"]),
+                "Color": rgb_csv(context["textMuted"]),
                 "ColorAmount": "0.025",
                 "ColorEffect": "2",
                 "ContrastAmount": "0.1",
@@ -671,14 +688,14 @@ def render_kde(
         section(
             "WM",
             {
-                "activeBackground": rgb_csv(context["selection"]),
-                "activeBlend": rgb_csv(context["fg"]),
-                "activeForeground": rgb_csv(context["fg"]),
+                "activeBackground": rgb_csv(context["selectionSubtle"]),
+                "activeBlend": rgb_csv(context["textPrimary"]),
+                "activeForeground": rgb_csv(context["textPrimary"]),
                 "frame": rgb_csv(context["accent"]),
-                "inactiveBackground": rgb_csv(context["bgBase"]),
-                "inactiveBlend": rgb_csv(context["fgMuted"]),
-                "inactiveForeground": rgb_csv(context["fgMuted"]),
-                "inactiveFrame": rgb_csv(context["bgBase"]),
+                "inactiveBackground": rgb_csv(context["uiBackground"]),
+                "inactiveBlend": rgb_csv(context["textMuted"]),
+                "inactiveForeground": rgb_csv(context["textMuted"]),
+                "inactiveFrame": rgb_csv(context["uiBackground"]),
             },
         )
     )

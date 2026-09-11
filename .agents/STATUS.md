@@ -25,6 +25,9 @@ from a partial palette into a semantic, auditable source for every adapter.
 - The old VS Code-named overrides are now application-neutral semantic roles.
   Strict catalog validation rejects missing fields, unknown keys, malformed
   colors, unknown roles, and invalid role references.
+- UI background, surface, border, hover, primary/muted text, and selection
+  roles are separate from terminal palette names. KDE, VS Code, OpenCode,
+  Kitty, and fzf consume those roles without changing current output.
 - A contrast baseline identifies 20 known failures across 9 themes without
   changing any generated output.
 

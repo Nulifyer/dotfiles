@@ -30,14 +30,19 @@ class Check:
 
 
 CHECKS = (
-    Check("text.primary", "fg", "bgBase", 4.5),
-    Check("text.muted", "fgMuted", "bgBase", 3.0),
-    Check("selection.foreground", "bgBase", "accent", 4.5),
-    Check("accent.nonText", "accent", "bgBase", 3.0),
-    Check("status.error", "error", "bgBase", 3.0),
-    Check("status.warning", "warning", "bgBase", 3.0),
-    Check("status.success", "success", "bgBase", 3.0),
-    Check("status.info", "info", "bgBase", 3.0),
+    Check("text.primary", "textPrimary", "uiBackground", 4.5),
+    Check("text.muted", "textMuted", "uiBackground", 3.0),
+    Check(
+        "selection.foreground",
+        "selectionForeground",
+        "selectionBackground",
+        4.5,
+    ),
+    Check("accent.nonText", "accent", "uiBackground", 3.0),
+    Check("status.error", "error", "uiBackground", 3.0),
+    Check("status.warning", "warning", "uiBackground", 3.0),
+    Check("status.success", "success", "uiBackground", 3.0),
+    Check("status.info", "info", "uiBackground", 3.0),
 )
 
 
