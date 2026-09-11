@@ -16,6 +16,7 @@
 | D010 | Deliver logical verified batches as focused commits without staging the existing unrelated worktree changes. | The project must remain recoverable and its history reviewable. | User requested proper Git tracking; existing dirty worktree observed on 2026-09-11. |
 | D011 | Semantic color roles are application-neutral; each app adapter decides which role a property uses and whether neighboring surfaces should blend or contrast. | VS Code can intentionally hide low-value borders while Brave tabs need visible separation, even when both share one palette. | User direction and theme-model audit, 2026-09-11. |
 | D012 | Contrast debt is explicit and regression-tested. New failures and stale resolved exceptions both fail validation. | Existing light themes have known failures; a checked baseline lets improvements land incrementally without silently accepting more debt. | Automated WCAG-style contrast audit, 2026-09-11. |
+| D013 | App adapters pin the third-party versions whose integration contracts they consume. | Extension settings, contributed color IDs, and grammar scopes can change independently of VS Code itself. | Rainbow CSV 3.24.1 and Git Graph 1.30.0 package inspection, 2026-09-11. |
 
 ## Open decisions
 

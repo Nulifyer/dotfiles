@@ -7,6 +7,15 @@ if dotfiles_is_kde; then
 fi
 
 if dotfiles_is_live_target && command -v code >/dev/null 2>&1; then
-    code --list-extensions --show-versions 2>/dev/null |
-        grep -q '^nulifyer\.nulifyer-theme@1\.2\.0$'
+    installed="$(code --list-extensions --show-versions 2>/dev/null)"
+    while IFS=$'\t' read -r extension version; do
+        if ! grep -Fqx "$extension@$version" <<<"$installed"; then
+            printf 'dotfiles: VS Code extension drift: expected %s@%s\n' \
+                "$extension" "$version" >&2
+            exit 1
+        fi
+    done < <(
+        jq -r '.extensions[] | [.id, .tested_version] | @tsv' \
+            "$DOTFILES_ROOT/vscode/extensions.json"
+    )
 fi

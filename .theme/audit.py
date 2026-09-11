@@ -46,23 +46,6 @@ CHECKS = (
 )
 
 
-def luminance(value: str) -> float:
-    channels = []
-    for channel in renderer.rgb(value):
-        normalized = channel / 255
-        channels.append(
-            normalized / 12.92
-            if normalized <= 0.04045
-            else ((normalized + 0.055) / 1.055) ** 2.4
-        )
-    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
-
-
-def contrast(first: str, second: str) -> float:
-    lighter, darker = sorted((luminance(first), luminance(second)), reverse=True)
-    return (lighter + 0.05) / (darker + 0.05)
-
-
 def main() -> int:
     report_only = sys.argv[1:] == ["--report"]
     if sys.argv[1:] not in ([], ["--report"]):
@@ -94,7 +77,7 @@ def main() -> int:
         renderer.validate_theme(theme_name, theme)
         context = renderer.scheme_context(theme)
         for check in CHECKS:
-            ratio = contrast(
+            ratio = renderer.contrast_ratio(
                 context[check.foreground], context[check.background]
             )
             rows.append((theme_name, check.name, ratio, check.minimum))

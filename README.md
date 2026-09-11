@@ -125,8 +125,9 @@ package portion is skipped.
 
 Every visible top-level application directory must contain `dotfiles.json`.
 `.dotfiles` contains generic module discovery and deployment internals, while
-`.theme` contains the renderer and current shared VS Code role templates. The
-root `colors.json` catalog and app-owned manifests are repository inputs.
+`.theme` contains shared color resolution and auditing. App-specific theme
+templates live with their owner, such as `vscode/theme/`. The root
+`colors.json` catalog and app-owned manifests are repository inputs.
 Generated palette files are ignored by Git and must be created locally with
 `./dotfiles theme NAME`.
 
@@ -206,6 +207,12 @@ Generated output is organized by owner:
 - `opencode/themes/nulifyer.json`
 - `vscode/extension`
 - `zsh/theme.generated.zsh`
+
+VS Code's app-owned adapter includes explicit Rainbow CSV column and tracking
+colors, plus a generated 12-color Git Graph branch cycle. The adapter raises
+low-contrast integration colors to readable thresholds without changing the
+theme's base palette. `vscode/extensions.json` records the exact extension
+versions used for the integration audit.
 
 `link` and `check` require current generated output and report how to create it
 when it is missing. `update` regenerates the locally selected theme after

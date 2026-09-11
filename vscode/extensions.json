@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "extensions": [
+    {
+      "id": "mechatroner.rainbow-csv",
+      "tested_version": "3.24.1",
+      "purpose": "Theme-aware CSV columns and column tracking"
+    },
+    {
+      "id": "mhutchie.git-graph",
+      "tested_version": "1.30.0",
+      "purpose": "Theme-aware repository graph"
+    },
+    {
+      "id": "nulifyer.nulifyer-theme",
+      "tested_version": "1.2.0",
+      "purpose": "Generated local color theme"
+    }
+  ]
+}

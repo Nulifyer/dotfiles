@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import runpy
 import sys
 import tempfile
 from pathlib import Path
@@ -14,7 +15,6 @@ from typing import Any
 
 THEME_ROOT = Path(__file__).resolve().parent
 CATALOG_PATH = THEME_ROOT.parent / "colors.json"
-VSCODE_TEMPLATE_ROOT = THEME_ROOT / "vscode"
 HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
 VSCODE_EXTENSION_PATH = Path(
     "vscode/extension"
@@ -22,6 +22,9 @@ VSCODE_EXTENSION_PATH = Path(
 OPENCODE_THEME_PATH = Path(
     "opencode/themes/nulifyer.json"
 )
+VSCODE_RENDER = runpy.run_path(
+    str(THEME_ROOT.parent / "vscode/theme/render.py")
+)["render"]
 
 SEMANTIC_ROLE_DEFAULTS = {
     "uiBackground": "bgBase",
@@ -121,6 +124,47 @@ def rgb(value: str) -> tuple[int, int, int]:
     return tuple(int(value[index : index + 2], 16) for index in (1, 3, 5))
 
 
+def relative_luminance(value: str) -> float:
+    channels = []
+    for channel in rgb(value):
+        normalized = channel / 255
+        channels.append(
+            normalized / 12.92
+            if normalized <= 0.04045
+            else ((normalized + 0.055) / 1.055) ** 2.4
+        )
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+
+
+def contrast_ratio(first: str, second: str) -> float:
+    lighter, darker = sorted(
+        (relative_luminance(first), relative_luminance(second)),
+        reverse=True,
+    )
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def ensure_contrast(foreground: str, background: str, minimum: float) -> str:
+    foreground = normalize_hex(foreground)
+    background = normalize_hex(background)
+    if contrast_ratio(foreground, background) >= minimum:
+        return foreground
+    candidates = ("#000000", "#FFFFFF")
+    target = max(candidates, key=lambda value: contrast_ratio(value, background))
+    if contrast_ratio(target, background) < minimum:
+        raise ValueError(f"contrast target cannot reach {minimum:.2f}: {background}")
+    low = 0
+    high = 100
+    while low < high:
+        percent = (low + high) // 2
+        candidate = blend_hex(foreground, target, percent)
+        if contrast_ratio(candidate, background) >= minimum:
+            high = percent
+        else:
+            low = percent + 1
+    return blend_hex(foreground, target, low)
+
+
 def rgb_csv(value: str) -> str:
     return ",".join(str(channel) for channel in rgb(value))
 
@@ -208,6 +252,11 @@ def resolve_expression(expression: str, context: dict[str, str]) -> str:
     if expression.startswith("adjust:"):
         _, role, percent = expression.split(":")
         return adjust_hex(context[role], int(percent))
+    if expression.startswith("contrast:"):
+        _, foreground, background, minimum = expression.split(":")
+        return ensure_contrast(
+            context[foreground], context[background], float(minimum)
+        )
     role, separator, alpha = expression.partition("+")
     value = context[role]
     return value + alpha if separator else value
@@ -250,63 +299,8 @@ def fzf_default_opts(context: dict[str, str]) -> str:
 def render_vscode(
     key: str, theme: dict[str, Any], context: dict[str, str]
 ) -> tuple[str, str]:
-    workbench = load_json(VSCODE_TEMPLATE_ROOT / "workbench.json")
-    tokens = load_json(VSCODE_TEMPLATE_ROOT / "tokens.json")
-    semantic = load_json(VSCODE_TEMPLATE_ROOT / "semantic.json")
-
-    color_theme = {
-        "$schema": "vscode://schemas/color-theme",
-        "name": f"Nulifyer — {theme['name']}",
-        "type": theme["variant"],
-        "semanticHighlighting": True,
-        "colors": {
-            name: resolve_expression(expression, context)
-            for name, expression in workbench.items()
-        },
-        "tokenColors": [
-            {
-                "scope": token["scope"],
-                "settings": {
-                    "foreground": resolve_expression(
-                        token["foreground"], context
-                    ),
-                    **(
-                        {"fontStyle": token["fontStyle"]}
-                        if "fontStyle" in token
-                        else {}
-                    ),
-                },
-            }
-            for token in tokens
-        ],
-        "semanticTokenColors": {
-            name: (
-                {
-                    "foreground": resolve_expression(
-                        expression["foreground"], context
-                    ),
-                    "fontStyle": expression["fontStyle"],
-                }
-                if isinstance(expression, dict)
-                else resolve_expression(expression, context)
-            )
-            for name, expression in semantic.items()
-        },
-    }
-
-    package = load_json(VSCODE_TEMPLATE_ROOT / "package.json")
-    package["description"] = (
-        "Theme generated from Nulifyer's shared colors catalog"
-    )
-    package["version"] = "1.2.0"
-    package["contributes"]["themes"][0]["uiTheme"] = (
-        "vs" if theme["variant"] == "light" else "vs-dark"
-    )
-
-    return (
-        json.dumps(package, indent=2) + "\n",
-        json.dumps(color_theme, indent=2) + "\n",
-    )
+    del key
+    return VSCODE_RENDER(theme, context, resolve_expression)
 
 
 def render_opencode(context: dict[str, str]) -> str:

@@ -30,11 +30,14 @@ from a partial palette into a semantic, auditable source for every adapter.
   Kitty, and fzf consume those roles without changing current output.
 - A contrast baseline identifies 20 known failures across 9 themes without
   changing any generated output.
+- VS Code now owns its theme templates and adapter. Rainbow CSV has explicit
+  ten-column and tracking colors, Git Graph receives a generated branch cycle,
+  and both integrations are checked against pinned inspected versions.
 
 ## Next action
 
-Add explicit surface and selection-foreground roles, record palette provenance,
-then repair the non-Gruvbox light-theme contrast failures.
+Record palette provenance and repair the non-Gruvbox light-theme contrast
+failures, then add Markdown and representative-language visual fixtures.
 
 ## Blockers
 
@@ -49,6 +52,11 @@ then repair the non-Gruvbox light-theme contrast failures.
 - `DOTFILES_DESKTOP=none` skips KDE-owned modules and dependencies.
 - A before/after hash comparison proved all 2,040 generated files are unchanged
   by the semantic-role rename and strict validation.
+- VS Code adapter tests render all 40 themes and enforce 4.5:1 Rainbow CSV text
+  contrast, 3:1 Git Graph line contrast, contributed tracking colors, and the
+  expected extension versions.
+- A live apply/check cycle exposed and fixed KDE scheme ordering and restored
+  the project picker shortcut to `Ctrl+Alt+P`.
 - Baseline environment: CachyOS, Wayland, Plasma and KWin 6.7.4, VS Code
   1.136.1.
 - Baseline worktree edits to preserve: `fish/conf.d/projects.fish`,

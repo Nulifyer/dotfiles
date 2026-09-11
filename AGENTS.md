@@ -12,6 +12,9 @@
 - Declare deployed paths in the owning folder's `dotfiles.json`. Use the
   standard optional lifecycle names `validate.sh`, `apply.sh`, `check.sh`,
   `reload.sh`, and `clean.sh`.
+- Keep app-specific theme property maps under the owning app folder. `.theme`
+  owns only shared color resolution, validation, audits, and protected
+  fixtures.
 
 ## Safety and delivery
 

@@ -627,16 +627,6 @@ check_json() {
             (.terminal.normal | keys | length) == 8 and
             (.terminal.bright | keys | length) == 8)
     ' "$THEME_CATALOG" >/dev/null
-    jq -e 'length == 422' \
-        "$DOTFILES_ROOT/.theme/vscode/workbench.json" \
-        >/dev/null
-    jq -e 'length == 790' \
-        "$DOTFILES_ROOT/.theme/vscode/tokens.json" \
-        >/dev/null
-    jq -e 'length == 62' \
-        "$DOTFILES_ROOT/.theme/vscode/semantic.json" \
-        >/dev/null
-
     "$THEME_RENDERER" --validate
 }
 

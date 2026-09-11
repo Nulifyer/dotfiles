@@ -10,8 +10,8 @@
         "kde/NulifyerGruvbox.colors": "574e472eae170f3397035066a24f9ac2d2c903009ee79ecdd6c229f57c7e17cc",
         "kitty/theme.generated.conf": "224dbac3de112f60ba2113a4a3074b5d8d086b31f0cd3cbf2e7d849a22e6f711",
         "opencode/themes/nulifyer.json": "fcc65c0e1a47a539d045393f96ad460927753c6f1e385a5d7d754f7c39fd5d15",
-        "vscode/extension/package.json": "8f8a8a72c3e64d607f2a127c31da185a492da790fe2826edf0ca45f86d4be376",
-        "vscode/extension/themes/nulifyer.json": "67eb2268cbe73eaba836c8b7a95b9dd3fc4136a97f744db800d9ed57f369e2c8",
+        "vscode/extension/package.json": "2754c4b41a6436ed6632b3e37b5c021251033f454c34463f81346078068a9afa",
+        "vscode/extension/themes/nulifyer.json": "f6d3f4b85ea5aceb5cbf4606c92cd7854456fd4e27a472e68411984199d9eb1e",
         "zsh/theme.generated.zsh": "d2bef4c3496cd2b773cb4492bf79f563f968665ce4b9cfa05203f3752f2bf3a1"
       }
     },
@@ -24,8 +24,8 @@
         "kde/NulifyerGruvboxLight.colors": "8ce163100daf9f2b0b4fccce74ad87d25f2b197436dd895bbf377c6b140b8c28",
         "kitty/theme.generated.conf": "f563512c776432b8d0e0cd42a03d14279f988da3dc7d0927488874df27644fa5",
         "opencode/themes/nulifyer.json": "41eeea701f26eb9b8e372dff45d6f885b3a77b009ca5e112aa2b6a8f9c95000d",
-        "vscode/extension/package.json": "7c33cd4a173825963dcf5edb7f0581d63f290521322c878641b87dbd1a16b071",
-        "vscode/extension/themes/nulifyer.json": "4241ed3144427472c27defd07a3948a85bf07fbc598854d70a336aa7dfdec5e3",
+        "vscode/extension/package.json": "46e1763220ec1c9be844c96a9ac367f09fa421d1dfc11eca97480b8def99d5b8",
+        "vscode/extension/themes/nulifyer.json": "a69cd9ad5a01195485b32e555d2be09757bcd64ff53d8165a63dbb4e31ae977e",
         "zsh/theme.generated.zsh": "9ab21182cc9f7516068f4528dbd337b3936e1facf4387c2bdd93de0bd8d1a6b8"
       }
     }

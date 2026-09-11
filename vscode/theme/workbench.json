@@ -420,5 +420,8 @@
   "scmGraph.foreground2": "gitModified",
   "scmGraph.foreground3": "info",
   "scmGraph.foreground4": "conflict",
-  "scmGraph.foreground5": "gitRenamed"
+  "scmGraph.foreground5": "gitRenamed",
+  "rainbowtrack1": "accent",
+  "rainbowtrack2": "success",
+  "rainbowtrack3": "error"
 }
