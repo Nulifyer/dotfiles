@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "settings": [
+    { "file": "kwinrulesrc", "groups": ["nulifyer-project-picker"], "key": "Description", "value": "Centered project picker" },
+    { "file": "kwinrulesrc", "groups": ["nulifyer-project-picker"], "key": "Enabled", "value": "true" },
+    { "file": "kwinrulesrc", "groups": ["nulifyer-project-picker"], "key": "placement", "value": "5" },
+    { "file": "kwinrulesrc", "groups": ["nulifyer-project-picker"], "key": "placementrule", "value": "2" },
+    { "file": "kwinrulesrc", "groups": ["nulifyer-project-picker"], "key": "types", "value": "1" },
+    { "file": "kwinrulesrc", "groups": ["nulifyer-project-picker"], "key": "wmclass", "value": "nulifyer-project-picker" },
+    { "file": "kwinrulesrc", "groups": ["nulifyer-project-picker"], "key": "wmclasscomplete", "value": "false" },
+    { "file": "kwinrulesrc", "groups": ["nulifyer-project-picker"], "key": "wmclassmatch", "value": "1" }
+  ],
+  "lists": [
+    {
+      "file": "kwinrulesrc",
+      "groups": ["General"],
+      "key": "rules",
+      "separator": ",",
+      "values": ["nulifyer-project-picker"]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "../.dotfiles/module.schema.json",
+  "version": 1,
+  "name": "brave",
+  "dependencies": {
+    "commands": {
+      "managed": ["brave"]
+    },
+    "packages": {
+      "arch": {
+        "managed": ["brave-bin"]
+      }
+    }
+  },
+  "deployments": []
+}

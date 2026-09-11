@@ -47,15 +47,42 @@ keep either version. Keeping the target imports it into the repository before
 linking, while keeping the repository replaces the target. A directory at a
 managed file path aborts instead of being deleted recursively.
 
-`link-config.json` declares every source and destination, so repository paths
-stay shallow and application-oriented instead of mirroring the home directory.
-The `file` strategy links one file, `contents` links the files below a source
-directory, and `directory` links the source directory itself. OpenCode uses a
-directory link so its tools and locally installed JavaScript dependencies share
-one real module-resolution tree.
+Each top-level application folder owns a visible `dotfiles.json`. The manifest
+declares every deployment source and destination, whether the source is one
+`file`, a directory's `contents`, or the `directory` itself, and whether it is
+installed by `link` or atomic `copy`. This keeps an application's configuration
+and deployment decisions together without mirroring the home directory in the
+repository.
 
-`unlink` removes only links that still point into this repository. It leaves
-regular files and unrelated application state untouched.
+For example, `kitty/dotfiles.json` owns Kitty's configuration, generated theme,
+and shared terminal environment deployment. `vscode/dotfiles.json` owns VS
+Code's settings and generated local theme extension. The root runner rejects a
+visible application folder without a manifest, unsafe relative paths, unknown
+manifest fields, and deployments that claim the same target.
+
+Modules may declare conditions. The KDE module runs only when KDE is detected
+from the current desktop or selected with `DOTFILES_DESKTOP=kde`. Use
+`./dotfiles status` to see which modules are enabled or skipped and why.
+
+An application may also own standard lifecycle hooks:
+
+- `validate.sh` checks tracked source without requiring the application to run.
+- `apply.sh` writes portable desired state that cannot be deployed as a file.
+- `check.sh` reports drift in the target home.
+- `reload.sh` tells a running application to reload after changes.
+- `clean.sh` removes only state that the application can prove it owns.
+
+The root runner discovers these hooks and provides `DOTFILES_ROOT`,
+`DOTFILES_TARGET`, and `DOTFILES_MODULE`. Shared helpers implement mechanics
+such as safe KConfig reads and writes; the owning application supplies the
+settings and decisions.
+
+OpenCode uses a directory link so its tools and locally installed JavaScript
+dependencies share one real module-resolution tree.
+
+`unlink` removes repository links and copied files that still match their
+source. It leaves changed copies, regular files not declared by a module, and
+unrelated application state untouched.
 
 ## OpenCode Workbench
 
@@ -78,25 +105,29 @@ Fish's generated `fish_variables` file remains local and is not tracked.
 
 ## Dependencies
 
-`packages.arch` is the auditable Arch package manifest. Entries are classified
-as:
+Each application's `dotfiles.json` owns its command and Arch package
+dependencies. The runner adds only its own bootstrap requirements and merges
+duplicate tools while retaining every owning module. Dependencies are
+classified as:
 
 - `required`: needed by the repository task runner or validation
 - `managed`: applications and platform components with tracked configuration
 - `optional`: enhancements used when installed
 
-Run `./dotfiles doctor` to report missing commands and Arch packages. Missing
-required dependencies fail the command. `./dotfiles doctor --strict` also fails
-for missing managed and optional packages. On another distribution, command
-checks still run and the Arch package portion is skipped.
+Run `./dotfiles doctor` to report missing commands and Arch packages with their
+owners. Missing required dependencies fail the command. `./dotfiles doctor
+--strict` also fails for missing managed and optional packages. Conditions are
+evaluated first, so KDE requirements are not reported when the KDE module is
+inactive. On another distribution, command checks still run and the Arch
+package portion is skipped.
 
 ## Repository internals
 
-Layer-one deployment directories are listed in `link-config.json`; visible
-directories without a deployment are rejected by `check`. `.theme` contains
-the renderer and VS Code role templates. The root `colors.json` catalog,
-`link-config.json`, and `packages.arch` are repository inputs. Generated
-palette files are ignored by Git and must be created locally with
+Every visible top-level application directory must contain `dotfiles.json`.
+`.dotfiles` contains generic module discovery and deployment internals, while
+`.theme` contains the renderer and current shared VS Code role templates. The
+root `colors.json` catalog and app-owned manifests are repository inputs.
+Generated palette files are ignored by Git and must be created locally with
 `./dotfiles theme NAME`.
 
 ## KDE

@@ -1,0 +1,35 @@
+{
+  "$schema": "../.dotfiles/module.schema.json",
+  "version": 1,
+  "name": "opencode",
+  "dependencies": {
+    "commands": {
+      "managed": [
+        "opencode"
+      ]
+    },
+    "packages": {
+      "arch": {
+        "managed": [
+          "opencode"
+        ]
+      }
+    }
+  },
+  "deployments": [
+    {
+      "name": "config",
+      "source": ".",
+      "target": ".config/opencode",
+      "kind": "directory",
+      "install": "link",
+      "preserve": [
+        ".gitignore",
+        "bun.lock",
+        "node_modules",
+        "package-lock.json",
+        "package.json"
+      ]
+    }
+  ]
+}

@@ -7,7 +7,7 @@ __pycache__/
 /alacritty/theme.generated.toml
 /bash/theme.generated.sh
 /fish/themes/current.fish
-/kde/
+/kde/*.colors
 /kitty/theme.generated.conf
 /opencode/themes/nulifyer.json
 /opencode/.gitignore

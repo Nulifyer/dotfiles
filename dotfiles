@@ -2,97 +2,31 @@
 
 set -euo pipefail
 
-readonly DOTFILES_SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]}")"
-readonly DOTFILES_ROOT="$(
+DOTFILES_SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]}")"
+readonly DOTFILES_SCRIPT_PATH
+DOTFILES_ROOT="$(
     cd -- "$(dirname -- "$DOTFILES_SCRIPT_PATH")"
     pwd -P
 )"
+readonly DOTFILES_ROOT
 readonly DOTFILES_TARGET="${DOTFILES_TARGET:-$HOME}"
-readonly LINK_CONFIG="$DOTFILES_ROOT/link-config.json"
+readonly MODULE_RUNNER="$DOTFILES_ROOT/.dotfiles/modules.py"
 readonly THEME_CATALOG="$DOTFILES_ROOT/colors.json"
 readonly THEME_RENDERER="$DOTFILES_ROOT/.theme/render.py"
 readonly THEME_LOCAL_STATE="$DOTFILES_ROOT/.theme/local"
-readonly KDE_FONT='CaskaydiaMono NF,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0'
-readonly -a KWIN_RULE_IDS=(
-    'nulifyer-project-picker'
-    'visual-studio-code-focus'
-)
-readonly -a KDE_SETTINGS=(
-    'kdeglobals|General|BrowserApplication|brave-browser.desktop'
-    'kdeglobals|General|TerminalApplication|kitty'
-    'kdeglobals|General|TerminalService|kitty.desktop'
-    'kdeglobals|General|XftAntialias|true'
-    'kdeglobals|General|XftHintStyle|hintslight'
-    'kdeglobals|General|XftSubPixel|rgb'
-    "kdeglobals|General|fixed|$KDE_FONT"
-    "kdeglobals|General|font|$KDE_FONT"
-    "kdeglobals|General|menuFont|$KDE_FONT"
-    'kdeglobals|General|smallestReadableFont|CaskaydiaMono NF,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0'
-    "kdeglobals|General|toolBarFont|$KDE_FONT"
-    'kdeglobals|KDE|AnimationDurationFactor|0.25'
-    'kdeglobals|KDE|contrast|4'
-    'kdeglobals|KDE|frameContrast|0'
-    "kdeglobals|WM|activeFont|$KDE_FONT"
-    'kdeglobals|KFileDialog Settings|Allow Expansion|false'
-    'kdeglobals|KFileDialog Settings|Automatically select filename extension|true'
-    'kdeglobals|KFileDialog Settings|Breadcrumb Navigation|false'
-    'kdeglobals|KFileDialog Settings|Decoration position|2'
-    'kdeglobals|KFileDialog Settings|Show Full Path|false'
-    'kdeglobals|KFileDialog Settings|Show Inline Previews|true'
-    'kdeglobals|KFileDialog Settings|Show Preview|false'
-    'kdeglobals|KFileDialog Settings|Show Speedbar|true'
-    'kdeglobals|KFileDialog Settings|Show hidden files|false'
-    'kdeglobals|KFileDialog Settings|Sort by|Name'
-    'kdeglobals|KFileDialog Settings|Sort directories first|true'
-    'kdeglobals|KFileDialog Settings|Sort hidden files last|false'
-    'kdeglobals|KFileDialog Settings|Sort reversed|false'
-    'kdeglobals|KFileDialog Settings|View Style|DetailTree'
-    'kdeglobals|PreviewSettings|EnableRemoteFolderThumbnail|false'
-    'kdeglobals|PreviewSettings|MaximumRemoteSize|0'
-    'kwinrc|TabBox|HighlightWindows|false'
-    'kwinrc|TabBox|LayoutName|thumbnail_grid'
-    'kwinrc|org.kde.kdecoration2|BorderSize|None'
-    'kwinrc|org.kde.kdecoration2|BorderSizeAuto|false'
-    'breezerc|Common|OutlineEnabled|true'
-    'breezerc|Windeco|DrawBorderOnMaximizedWindows|true'
-    'kwinrulesrc|nulifyer-project-picker|Description|Centered project picker'
-    'kwinrulesrc|nulifyer-project-picker|Enabled|true'
-    'kwinrulesrc|nulifyer-project-picker|placement|5'
-    'kwinrulesrc|nulifyer-project-picker|placementrule|2'
-    'kwinrulesrc|nulifyer-project-picker|types|1'
-    'kwinrulesrc|nulifyer-project-picker|wmclass|nulifyer-project-picker'
-    'kwinrulesrc|nulifyer-project-picker|wmclasscomplete|false'
-    'kwinrulesrc|nulifyer-project-picker|wmclassmatch|1'
-    'kwinrulesrc|visual-studio-code-focus|Description|Allow VS Code activation'
-    'kwinrulesrc|visual-studio-code-focus|Enabled|true'
-    'kwinrulesrc|visual-studio-code-focus|fsplevel|0'
-    'kwinrulesrc|visual-studio-code-focus|fsplevelrule|2'
-    'kwinrulesrc|visual-studio-code-focus|types|1'
-    'kwinrulesrc|visual-studio-code-focus|wmclass|^[Cc]ode$'
-    'kwinrulesrc|visual-studio-code-focus|wmclasscomplete|false'
-    'kwinrulesrc|visual-studio-code-focus|wmclassmatch|3'
-)
-readonly -a KDE_NESTED_SETTINGS=(
-    'powerdevilrc|AC|Display|DimDisplayIdleTimeoutSec|-1'
-    'powerdevilrc|AC|Display|DimDisplayWhenIdle|false'
-    'powerdevilrc|AC|Display|TurnOffDisplayIdleTimeoutSec|-1'
-    'powerdevilrc|AC|Display|TurnOffDisplayWhenIdle|false'
-    'powerdevilrc|AC|SuspendAndShutdown|AutoSuspendAction|0'
-)
-
 usage() {
     cat <<'EOF'
 Usage: ./dotfiles COMMAND
 
 Commands:
-  link         Create or refresh links from link-config.json
+  link         Deploy app-owned files by link or copy
   apply        Apply settings that cannot safely be linked
   theme        Generate local theme files from colors.json
   check        Validate source files, generated files, and installed links
   doctor       Report required and optional setup dependencies
   update       Pull with --ff-only, then link, apply, and validate
   status       Show repository and package status
-  unlink       Remove links managed by link-config.json
+  unlink       Remove unchanged deployed files
   help         Show this help
 
 Environment:
@@ -120,366 +54,45 @@ doctor_command() {
 
     local missing_required=false
     local missing_any=false
-    local class package
-    local -a command_specs=(
-        'required|bash'
-        'required|git'
-        'required|jq'
-        'required|python3'
-        'required|sha256sum'
-        'managed|alacritty'
-        'managed|fish'
-        'managed|fzf'
-        'managed|kbuildsycoca6'
-        'managed|kreadconfig6'
-        'managed|kitty'
-        'managed|plasma-apply-colorscheme'
-        'managed|kwriteconfig6'
-        'managed|spectacle'
-        'managed|code'
-        'managed|zsh'
-        'optional|bat'
-        'optional|chafa'
-        'optional|curl'
-        'optional|eza'
-    )
+    local class dependency owners
 
     printf 'Commands:\n'
-    local spec command_name
-    for spec in "${command_specs[@]}"; do
-        IFS='|' read -r class command_name <<<"$spec"
-        if command -v "$command_name" >/dev/null 2>&1; then
-            printf '  ok       %-8s %s\n' "$class" "$command_name"
+    while IFS=$'\t' read -r class dependency owners; do
+        if command -v "$dependency" >/dev/null 2>&1; then
+            printf '  ok       %-8s %-28s %s\n' "$class" "$dependency" "$owners"
         else
-            printf '  missing  %-8s %s\n' "$class" "$command_name"
+            printf '  missing  %-8s %-28s %s\n' \
+                "$class" "$dependency" "$owners"
             missing_any=true
             [[ "$class" == required ]] && missing_required=true
         fi
-    done
+    done < <(
+        python3 "$MODULE_RUNNER" --root "$DOTFILES_ROOT" \
+            dependencies commands
+    )
 
     if command -v pacman >/dev/null 2>&1; then
         printf '\nArch packages:\n'
-        while read -r class package; do
-            [[ -n "${class:-}" ]] || continue
-            [[ "$class" == \#* ]] && continue
-            if pacman -T "$package" >/dev/null 2>&1; then
-                printf '  ok       %-8s %s\n' "$class" "$package"
+        while IFS=$'\t' read -r class dependency owners; do
+            if pacman -T "$dependency" >/dev/null 2>&1; then
+                printf '  ok       %-8s %-28s %s\n' \
+                    "$class" "$dependency" "$owners"
             else
-                printf '  missing  %-8s %s\n' "$class" "$package"
+                printf '  missing  %-8s %-28s %s\n' \
+                    "$class" "$dependency" "$owners"
                 missing_any=true
                 [[ "$class" == required ]] && missing_required=true
             fi
-        done <"$DOTFILES_ROOT/packages.arch"
+        done < <(
+            python3 "$MODULE_RUNNER" --root "$DOTFILES_ROOT" \
+                dependencies packages --platform arch
+        )
     else
         printf '\nArch package checks skipped: pacman is unavailable.\n'
     fi
 
     if [[ "$missing_required" == true ]] ||
         [[ "$strict" == true && "$missing_any" == true ]]; then
-        return 1
-    fi
-}
-
-kde_theme_root() {
-    printf '%s\n' "$THEME_LOCAL_STATE"
-}
-
-kde_icon_theme() {
-    local variant_file
-    variant_file="$(kde_theme_root)/variant"
-    if [[ -r "$variant_file" ]] && [[ "$(<"$variant_file")" == light ]]; then
-        printf '%s\n' breeze
-    else
-        printf '%s\n' breeze-dark
-    fi
-}
-
-kde_write_setting() {
-    local entry=$1
-    local file group key value
-    IFS='|' read -r file group key value <<<"$entry"
-    kwriteconfig6 --file "$file" --group "$group" --key "$key" -- "$value"
-}
-
-kde_write_nested_setting() {
-    local entry=$1
-    local file group subgroup key value
-    IFS='|' read -r file group subgroup key value <<<"$entry"
-    kwriteconfig6 --file "$file" --group "$group" --group "$subgroup" \
-        --key "$key" -- "$value"
-}
-
-kde_scheme_path() {
-    local scheme
-    IFS= read -r scheme <"$(kde_theme_root)/kde-scheme"
-    printf '%s/color-schemes/%s.colors\n' \
-        "${XDG_DATA_HOME:-$HOME/.local/share}" "$scheme"
-}
-
-kde_apply_color_scheme() {
-    local scheme_file
-    scheme_file="$(kde_scheme_path)"
-    if [[ ! -r "$scheme_file" ]]; then
-        printf 'dotfiles: linked KDE color scheme is missing: %s\n' \
-            "$scheme_file" >&2
-        return 1
-    fi
-
-    require_command plasma-apply-colorscheme
-
-    local current_scheme scheme
-    current_scheme="$(
-        kreadconfig6 --file kdeglobals --group General --key ColorScheme
-    )"
-    scheme="$(basename -- "$scheme_file" .colors)"
-
-    # Force Plasma to reapply the current scheme so KWin receives the color
-    # change notification when a generated scheme is updated in place.
-    kwriteconfig6 --file kdeglobals --group General --key ColorScheme \
-        -- __nulifyer_refresh__
-    if ! plasma-apply-colorscheme "$scheme" >/dev/null; then
-        kwriteconfig6 --file kdeglobals --group General --key ColorScheme \
-            -- "$current_scheme"
-        return 1
-    fi
-}
-
-breeze_project_picker_exception_group() {
-    local index group enabled pattern exception_type hide_title_bar mask
-    local first_free=''
-
-    for ((index = 0; index < 100; index++)); do
-        group="Windeco Exception $index"
-        enabled="$(kreadconfig6 --file breezerc --group "$group" \
-            --key Enabled 2>/dev/null)"
-        pattern="$(kreadconfig6 --file breezerc --group "$group" \
-            --key ExceptionPattern 2>/dev/null)"
-        exception_type="$(kreadconfig6 --file breezerc --group "$group" \
-            --key ExceptionType 2>/dev/null)"
-        hide_title_bar="$(kreadconfig6 --file breezerc --group "$group" \
-            --key HideTitleBar 2>/dev/null)"
-        mask="$(kreadconfig6 --file breezerc --group "$group" \
-            --key Mask 2>/dev/null)"
-
-        if [[ "$pattern" == nulifyer-project-picker ]]; then
-            printf '%s\n' "$group"
-            return
-        fi
-        if [[ -z "$first_free" && -z "$enabled" && -z "$pattern" &&
-            -z "$exception_type" && -z "$hide_title_bar" && -z "$mask" ]]; then
-            first_free=$group
-        fi
-    done
-
-    [[ -n "$first_free" ]] || return 1
-    printf '%s\n' "$first_free"
-}
-
-apply_kde_window_rules() {
-    local exception_group
-    exception_group="$(breeze_project_picker_exception_group)" || {
-        printf 'dotfiles: no free Breeze window exception slot\n' >&2
-        return 1
-    }
-    kwriteconfig6 --file breezerc --group "$exception_group" \
-        --key Enabled -- true
-    kwriteconfig6 --file breezerc --group "$exception_group" \
-        --key ExceptionPattern -- nulifyer-project-picker
-    kwriteconfig6 --file breezerc --group "$exception_group" \
-        --key ExceptionType -- 0
-    kwriteconfig6 --file breezerc --group "$exception_group" \
-        --key HideTitleBar -- true
-    kwriteconfig6 --file breezerc --group "$exception_group" \
-        --key Mask -- 0
-
-    local rule_id rules
-    local rules_changed=false
-    rules="$(kreadconfig6 --file kwinrulesrc --group General --key rules)"
-    for rule_id in "${KWIN_RULE_IDS[@]}"; do
-        if [[ ",$rules," != *",$rule_id,"* ]]; then
-            rules="${rules:+$rules,}$rule_id"
-            rules_changed=true
-        fi
-    done
-    if [[ "$rules_changed" == true ]]; then
-        kwriteconfig6 --file kwinrulesrc --group General --key rules -- "$rules"
-    fi
-}
-
-apply_kde_settings() {
-    require_command kbuildsycoca6
-
-    local entry
-    kde_apply_color_scheme
-
-    for entry in "${KDE_SETTINGS[@]}"; do
-        kde_write_setting "$entry"
-    done
-    for entry in "${KDE_NESTED_SETTINGS[@]}"; do
-        kde_write_nested_setting "$entry"
-    done
-    apply_kde_window_rules
-    kwriteconfig6 --file kdeglobals --group Icons --key Theme \
-        -- "$(kde_icon_theme)"
-
-    if command -v qdbus6 >/dev/null 2>&1; then
-        qdbus6 org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true
-        if qdbus6 org.kde.kglobalaccel >/dev/null 2>&1; then
-            qdbus6 org.kde.kglobalaccel /kglobalaccel \
-                org.kde.KGlobalAccel.unregister \
-                nulifyer-project-picker.desktop _launch >/dev/null 2>&1 || true
-        fi
-    fi
-    kbuildsycoca6 >/dev/null
-
-    printf 'Applied portable KDE settings and the selected color scheme.\n'
-}
-
-apply_brave_settings() {
-    local preferences="$DOTFILES_TARGET/.config/BraveSoftware/Brave-Browser/Default/Preferences"
-    [[ -f "$preferences" ]] || return
-
-    local temporary
-    temporary="$(mktemp "$preferences.tmp.XXXXXX")"
-    if ! jq '.browser.custom_chrome_frame = false' \
-        "$preferences" >"$temporary"; then
-        rm -f -- "$temporary"
-        return 1
-    fi
-    chmod --reference="$preferences" "$temporary"
-    mv -f -- "$temporary" "$preferences"
-    printf 'Applied Brave native window decorations.\n'
-}
-
-kde_check_value() {
-    local file=$1
-    local group=$2
-    local key=$3
-    local expected=$4
-    local actual
-    actual="$(
-        kreadconfig6 --file "$file" --group "$group" --key "$key" 2>/dev/null
-    )"
-
-    if [[ "$actual" != "$expected" ]]; then
-        printf 'dotfiles: KDE drift: %s [%s] %s = %q; expected %q\n' \
-            "$file" "$group" "$key" "$actual" "$expected" >&2
-        return 1
-    fi
-}
-
-kde_check_nested_value() {
-    local file=$1
-    local group=$2
-    local subgroup=$3
-    local key=$4
-    local expected=$5
-    local actual
-    actual="$(
-        kreadconfig6 --file "$file" --group "$group" --group "$subgroup" \
-            --key "$key" 2>/dev/null
-    )"
-
-    if [[ "$actual" != "$expected" ]]; then
-        printf 'dotfiles: KDE drift: %s [%s][%s] %s = %q; expected %q\n' \
-            "$file" "$group" "$subgroup" "$key" "$actual" "$expected" >&2
-        return 1
-    fi
-}
-
-kde_check_color_scheme() {
-    local scheme_file
-    scheme_file="$(kde_scheme_path)"
-    if [[ ! -r "$scheme_file" ]]; then
-        printf 'dotfiles: linked KDE color scheme is missing: %s\n' \
-            "$scheme_file" >&2
-        return 1
-    fi
-
-    python3 "$DOTFILES_ROOT/.theme/check_kde.py" \
-        "$scheme_file" \
-        "${XDG_CONFIG_HOME:-$HOME/.config}/kdeglobals"
-}
-
-check_kde_settings() {
-    command -v kreadconfig6 >/dev/null 2>&1 || return
-
-    local entry file group subgroup key expected
-    local failed=false
-    local state_root
-    state_root="$(kde_theme_root)"
-
-    for entry in "${KDE_SETTINGS[@]}"; do
-        IFS='|' read -r file group key expected <<<"$entry"
-        kde_check_value "$file" "$group" "$key" "$expected" || failed=true
-    done
-    for entry in "${KDE_NESTED_SETTINGS[@]}"; do
-        IFS='|' read -r file group subgroup key expected <<<"$entry"
-        kde_check_nested_value \
-            "$file" "$group" "$subgroup" "$key" "$expected" || failed=true
-    done
-    kde_check_value kdeglobals Icons Theme "$(kde_icon_theme)" || failed=true
-
-    local exception_group
-    exception_group="$(breeze_project_picker_exception_group)"
-    if [[ -z "$exception_group" ]]; then
-        printf 'dotfiles: Breeze project picker exception is missing\n' >&2
-        failed=true
-    else
-        kde_check_value breezerc "$exception_group" Enabled true || failed=true
-        kde_check_value breezerc "$exception_group" ExceptionType 0 || failed=true
-        kde_check_value breezerc "$exception_group" HideTitleBar true || failed=true
-        kde_check_value breezerc "$exception_group" Mask 0 || failed=true
-    fi
-
-    local rule_id rules
-    rules="$(kreadconfig6 --file kwinrulesrc --group General --key rules)"
-    for rule_id in "${KWIN_RULE_IDS[@]}"; do
-        if [[ ",$rules," != *",$rule_id,"* ]]; then
-            printf 'dotfiles: KWin rule is missing from the rule list: %s\n' \
-                "$rule_id" >&2
-            failed=true
-        fi
-    done
-
-    if [[ ! -r "$state_root/kde-scheme" ]]; then
-        printf 'dotfiles: generated KDE scheme state is missing\n' >&2
-        failed=true
-    else
-        kde_check_color_scheme || failed=true
-    fi
-
-    [[ "$failed" == false ]]
-}
-
-check_kde_project_picker() {
-    command -v qdbus6 >/dev/null 2>&1 || return 0
-    qdbus6 org.kde.kglobalaccel >/dev/null 2>&1 || return 0
-
-    local actions
-    actions="$(
-        qdbus6 --literal org.kde.kglobalaccel /kglobalaccel \
-            org.kde.KGlobalAccel.allActionsForComponent \
-            nulifyer-project-picker.desktop 2>/dev/null
-    )" || true
-    if [[ "$actions" != *'"_launch"'* ]]; then
-        printf 'dotfiles: KDE project picker shortcut is not registered\n' >&2
-        return 1
-    fi
-
-    local shortcut_info
-    shortcut_info="$(
-        qdbus6 --literal org.kde.kglobalaccel \
-            /component/nulifyer_project_picker_desktop \
-            org.kde.kglobalaccel.Component.allShortcutInfos 2>/dev/null
-    )" || true
-    local active_keys=''
-    if [[ "$shortcut_info" =~ \[Argument:\ ai\ \{([^}]*)\}\] ]]; then
-        active_keys=${BASH_REMATCH[1]}
-    fi
-    # 201326672 is Qt::CTRL | Qt::ALT | Qt::Key_P.
-    if [[ "$active_keys" != 201326672 ]]; then
-        printf 'dotfiles: KDE project picker shortcut is not Ctrl+Alt+P\n' >&2
         return 1
     fi
 }
@@ -500,15 +113,19 @@ link_points_into_repository() {
 }
 
 deployment_rows() {
-    jq -r '.deployments[] | [.name, .source, .target, .strategy] | @tsv' \
-        "$LINK_CONFIG"
+    python3 "$MODULE_RUNNER" --root "$DOTFILES_ROOT" rows
+}
+
+all_deployment_rows() {
+    python3 "$MODULE_RUNNER" --root "$DOTFILES_ROOT" rows --all
 }
 
 deployment_preserve_paths() {
-    local name=$1
-    jq -r --arg name "$name" \
-        '.deployments[] | select(.name == $name) | .preserve[]?' \
-        "$LINK_CONFIG"
+    python3 "$MODULE_RUNNER" --root "$DOTFILES_ROOT" preserve "$1"
+}
+
+deployment_source_files() {
+    python3 "$MODULE_RUNNER" --root "$DOTFILES_ROOT" files "$1"
 }
 
 deployment_target_root() {
@@ -520,72 +137,60 @@ deployment_target_root() {
     fi
 }
 
-path_is_safe_relative() {
-    local value=$1
-    [[ -n "$value" && "$value" != /* && "$value" != .. &&
-        "$value" != ../* && "$value" != */.. && "$value" != */../* ]]
+validate_deployments() {
+    python3 "$MODULE_RUNNER" --root "$DOTFILES_ROOT" validate
 }
 
-validate_link_config() {
-    jq -e '
-        (.deployments | type == "array" and length > 0) and
-        ([.deployments[].name] | length == (unique | length)) and
-        all(.deployments[];
-            (.name | type == "string" and length > 0) and
-            (.source | type == "string" and length > 0) and
-            (.target | type == "string" and length > 0) and
-            (.strategy == "file" or .strategy == "contents" or
-                .strategy == "directory") and
-            ((.preserve // []) | type == "array") and
-            all((.preserve // [])[]; type == "string" and length > 0)
-        )
-    ' "$LINK_CONFIG" >/dev/null || {
-        printf 'dotfiles: invalid deployment manifest: %s\n' \
-            "$LINK_CONFIG" >&2
-        return 1
-    }
+run_module_hooks() {
+    local action=$1
+    local include_inactive=${2:-false}
+    local -a arguments=(
+        "$MODULE_RUNNER" --root "$DOTFILES_ROOT" hooks "$action"
+    )
+    if [[ "$include_inactive" == true ]]; then
+        arguments+=(--all)
+    fi
 
-    local name source target strategy preserve
-    while IFS=$'\t' read -r name source target strategy; do
-        if ! path_is_safe_relative "$source" ||
-            ! path_is_safe_relative "$target"; then
-            printf 'dotfiles: unsafe deployment path for %s\n' "$name" >&2
-            return 1
+    local module hook
+    local failed=false
+    while IFS=$'\t' read -r module hook; do
+        printf '%s %s settings...\n' "${action^}" "$module"
+        if ! env \
+            DOTFILES_ROOT="$DOTFILES_ROOT" \
+            DOTFILES_TARGET="$DOTFILES_TARGET" \
+            DOTFILES_MODULE="$module" \
+            bash "$hook"; then
+            failed=true
         fi
-        if [[ "$strategy" == file &&
-            ! -f "$DOTFILES_ROOT/$source" &&
-            ! -L "$DOTFILES_ROOT/$source" ]]; then
-            printf 'dotfiles: deployment source is missing: %s\n' \
-                "$DOTFILES_ROOT/$source" >&2
-            return 1
-        elif [[ "$strategy" != file && ! -d "$DOTFILES_ROOT/$source" ]]; then
-            printf 'dotfiles: deployment source is missing: %s\n' \
-                "$DOTFILES_ROOT/$source" >&2
-            return 1
-        fi
-        while IFS= read -r preserve; do
-            if ! path_is_safe_relative "$preserve"; then
-                printf 'dotfiles: unsafe preserve path for %s: %s\n' \
-                    "$name" "$preserve" >&2
-                return 1
-            fi
-        done < <(deployment_preserve_paths "$name")
-    done < <(deployment_rows)
+    done < <(python3 "${arguments[@]}")
+    [[ "$failed" == false ]]
+}
+
+deployment_matches() {
+    local source=$1
+    local target=$2
+    local install_method=$3
+    if [[ "$install_method" == link ]]; then
+        link_matches "$source" "$target"
+    else
+        [[ -f "$target" && ! -L "$target" ]] && cmp -s -- "$source" "$target"
+    fi
 }
 
 replace_link_conflicts() {
-    local name source_root target_root strategy source relative target choice
+    local name source_root target_root source_kind install_method module
+    local source relative target choice
     local failed=false
     local -a conflict_sources=()
     local -a conflict_targets=()
     local -a conflict_choices=()
 
-    while IFS=$'\t' read -r name source_root target_root strategy; do
-        [[ "$strategy" != directory ]] || continue
-        if [[ "$strategy" == file ]]; then
+    while IFS=$'\t' read -r name source_root target_root source_kind install_method module; do
+        [[ "$source_kind" != directory ]] || continue
+        if [[ "$source_kind" == file ]]; then
             source="$DOTFILES_ROOT/$source_root"
             target="$(deployment_target_root "$target_root")"
-            link_matches "$source" "$target" && continue
+            deployment_matches "$source" "$target" "$install_method" && continue
             if link_points_into_repository "$target"; then
                 rm -f -- "$target"
                 continue
@@ -602,9 +207,10 @@ replace_link_conflicts() {
         fi
         target_root="$(deployment_target_root "$target_root")"
         while IFS= read -r -d '' source; do
+            source="$DOTFILES_ROOT/$source"
             relative="${source#"$DOTFILES_ROOT/$source_root/"}"
             target="$target_root/$relative"
-            link_matches "$source" "$target" && continue
+            deployment_matches "$source" "$target" "$install_method" && continue
             if link_points_into_repository "$target"; then
                 rm -f -- "$target"
                 continue
@@ -618,10 +224,7 @@ replace_link_conflicts() {
                 conflict_sources+=("$source")
                 conflict_targets+=("$target")
             fi
-        done < <(
-            find "$DOTFILES_ROOT/$source_root" \
-                \( -type f -o -type l \) -print0
-        )
+        done < <(deployment_source_files "$name")
     done < <(deployment_rows)
 
     [[ "$failed" == false ]] || return 1
@@ -748,24 +351,37 @@ migrate_directory_target() {
 }
 
 deploy_contents() {
-    local source_root=$1
-    local target_root=$2
+    local name=$1
+    local source_root=$2
+    local target_root=$3
+    local install_method=$4
     local source relative target
     while IFS= read -r -d '' source; do
+        source="$DOTFILES_ROOT/$source"
         relative="${source#"$source_root/"}"
         target="$target_root/$relative"
-        link_matches "$source" "$target" && continue
-        mkdir -p -- "$(dirname -- "$target")"
-        ln -sr -- "$source" "$target"
-    done < <(find "$source_root" \( -type f -o -type l \) -print0)
+        deploy_file "$source" "$target" "$install_method"
+    done < <(deployment_source_files "$name")
 }
 
 deploy_file() {
     local source=$1
     local target=$2
-    link_matches "$source" "$target" && return
+    local install_method=$3
+    deployment_matches "$source" "$target" "$install_method" && return
     mkdir -p -- "$(dirname -- "$target")"
-    ln -sr -- "$source" "$target"
+    if [[ "$install_method" == link ]]; then
+        ln -sr -- "$source" "$target"
+        return
+    fi
+
+    local temporary
+    temporary="$(mktemp "$(dirname -- "$target")/.dotfiles-copy.XXXXXX")"
+    if ! cp --preserve=mode --reflink=auto -- "$source" "$temporary"; then
+        rm -f -- "$temporary"
+        return 1
+    fi
+    mv -fT -- "$temporary" "$target"
 }
 
 deploy_directory() {
@@ -807,19 +423,20 @@ deploy_directory() {
 }
 
 link_packages() {
-    require_command jq
+    require_command python3
     require_generated_theme
-    validate_link_config
+    validate_deployments
     replace_link_conflicts
     printf 'Deploying dotfiles into %s...\n' "$DOTFILES_TARGET"
 
-    local name source target strategy target_root
-    while IFS=$'\t' read -r name source target strategy; do
+    local name source target source_kind install_method module target_root
+    while IFS=$'\t' read -r name source target source_kind install_method module; do
         target_root="$(deployment_target_root "$target")"
-        if [[ "$strategy" == file ]]; then
-            deploy_file "$DOTFILES_ROOT/$source" "$target_root"
-        elif [[ "$strategy" == contents ]]; then
-            deploy_contents "$DOTFILES_ROOT/$source" "$target_root"
+        if [[ "$source_kind" == file ]]; then
+            deploy_file "$DOTFILES_ROOT/$source" "$target_root" "$install_method"
+        elif [[ "$source_kind" == contents ]]; then
+            deploy_contents \
+                "$name" "$DOTFILES_ROOT/$source" "$target_root" "$install_method"
         else
             deploy_directory "$name" "$DOTFILES_ROOT/$source" "$target_root"
         fi
@@ -827,35 +444,35 @@ link_packages() {
 }
 
 unlink_packages() {
-    require_command jq
-    validate_link_config
-    printf 'Removing managed links from %s...\n' "$DOTFILES_TARGET"
+    require_command python3
+    validate_deployments
+    printf 'Removing unchanged managed files from %s...\n' "$DOTFILES_TARGET"
 
-    local name source_root target strategy target_root source relative installed
-    while IFS=$'\t' read -r name source_root target strategy; do
+    local name source_root target source_kind install_method module
+    local target_root source relative installed
+    while IFS=$'\t' read -r name source_root target source_kind install_method module; do
         target_root="$(deployment_target_root "$target")"
-        if [[ "$strategy" == directory ]]; then
+        if [[ "$source_kind" == directory ]]; then
             if link_matches "$DOTFILES_ROOT/$source_root" "$target_root"; then
                 rm -f -- "$target_root"
             fi
             continue
-        elif [[ "$strategy" == file ]]; then
-            if link_matches "$DOTFILES_ROOT/$source_root" "$target_root"; then
+        elif [[ "$source_kind" == file ]]; then
+            if deployment_matches \
+                "$DOTFILES_ROOT/$source_root" "$target_root" "$install_method"; then
                 rm -f -- "$target_root"
             fi
             continue
         fi
         while IFS= read -r -d '' source; do
+            source="$DOTFILES_ROOT/$source"
             relative="${source#"$DOTFILES_ROOT/$source_root/"}"
             installed="$target_root/$relative"
-            if link_matches "$source" "$installed"; then
+            if deployment_matches "$source" "$installed" "$install_method"; then
                 rm -f -- "$installed"
             fi
-        done < <(
-            find "$DOTFILES_ROOT/$source_root" \
-                \( -type f -o -type l \) -print0
-        )
-    done < <(deployment_rows)
+        done < <(deployment_source_files "$name")
+    done < <(all_deployment_rows)
 }
 
 theme_current() {
@@ -974,36 +591,34 @@ EOF
 
 apply_settings() {
     require_generated_theme
-    if command -v kwriteconfig6 >/dev/null 2>&1; then
-        apply_kde_settings
-    else
-        printf 'Skipping KDE settings: Plasma configuration tools are unavailable.\n'
-    fi
-    apply_brave_settings
+    run_module_hooks apply
+    run_module_hooks reload
+    printf 'Applied enabled application settings.\n'
 }
 
 check_json() {
     require_command jq
 
     local json_file
-    local -a json_files=(
-        "$THEME_CATALOG"
-        "$LINK_CONFIG"
-        "$DOTFILES_ROOT/.theme/vscode/package.json"
-        "$DOTFILES_ROOT/.theme/vscode/workbench.json"
-        "$DOTFILES_ROOT/.theme/vscode/tokens.json"
-        "$DOTFILES_ROOT/.theme/vscode/semantic.json"
+    local -a json_files=()
+    mapfile -d '' -t json_files < <(
+        git -C "$DOTFILES_ROOT" ls-files -co -z --exclude-standard -- '*.json'
+    )
+    local index
+    for index in "${!json_files[@]}"; do
+        json_files[index]="$DOTFILES_ROOT/${json_files[index]}"
+    done
+    json_files+=(
         "$DOTFILES_ROOT/vscode/extension/package.json"
         "$DOTFILES_ROOT/vscode/extension/themes/nulifyer.json"
-        "$DOTFILES_ROOT/vscode/settings.json"
         "$DOTFILES_ROOT/opencode/themes/nulifyer.json"
     )
 
     for json_file in "${json_files[@]}"; do
+        [[ -f "$json_file" ]] || continue
         jq -e . "$json_file" >/dev/null
     done
-
-    validate_link_config
+    validate_deployments
 
     jq -e '
         length > 0 and
@@ -1025,108 +640,31 @@ check_json() {
     "$THEME_RENDERER" --validate
 }
 
-check_shell() {
-    bash -n \
-        "$DOTFILES_ROOT/dotfiles" \
-        "$DOTFILES_ROOT/bash/bashrc" \
-        "$DOTFILES_ROOT/bash/bash_profile"
-
-    fish -n \
-        "$DOTFILES_ROOT/fish/config.fish" \
-        "$DOTFILES_ROOT/fish/conf.d/"*.fish \
-        "$DOTFILES_ROOT/.tests/project_picker.fish"
-
-    if command -v zsh >/dev/null 2>&1; then
-        zsh -n "$DOTFILES_ROOT/zsh/zshrc"
-    fi
-
-    python3 -c '
+check_sources() {
+    bash -n "$DOTFILES_ROOT/dotfiles" "$DOTFILES_ROOT/.dotfiles/lib.sh"
+    python3 - \
+        "$MODULE_RUNNER" \
+        "$DOTFILES_ROOT/.dotfiles/kconfig.py" \
+        "$THEME_RENDERER" \
+        "$DOTFILES_ROOT/.theme/check_kde.py" \
+        "$DOTFILES_ROOT/kde/apply_scheme.py" <<'PY'
 import pathlib
+import sys
 
-for name in (
-    "'"$THEME_RENDERER"'",
-    "'"$DOTFILES_ROOT/.theme/check_kde.py"'",
-    "'"$DOTFILES_ROOT/fish/tools/project_candidates.py"'",
-):
-    compile(pathlib.Path(name).read_text(), pathlib.Path(name).name, "exec")
-'
-
-    fish "$DOTFILES_ROOT/.tests/project_picker.fish"
+for name in sys.argv[1:]:
+    path = pathlib.Path(name)
+    compile(path.read_text(), path.name, "exec")
+PY
+    python3 "$DOTFILES_ROOT/.tests/modules.py"
+    run_module_hooks validate true
 }
 
-check_desktop_entries() {
-    local desktop_file="$DOTFILES_ROOT/applications/nulifyer-project-picker.desktop"
-    grep -qx 'Type=Application' "$desktop_file"
-    grep -qx 'Exec=kitty --class nulifyer-project-picker --title "Project Picker" --override remember_window_size=no --override initial_window_width=72c --override initial_window_height=13c fish -c zpick' \
-        "$desktop_file"
-    grep -qx 'X-KDE-Shortcuts=Ctrl+Alt+P' "$desktop_file"
-
-    if command -v desktop-file-validate >/dev/null 2>&1; then
-        desktop-file-validate "$desktop_file"
-    fi
-}
-
-check_toml() {
-    python3 -c '
-import pathlib
-import tomllib
-
-for name in (
-    "'"$DOTFILES_ROOT/alacritty/alacritty.toml"'",
-    "'"$DOTFILES_ROOT/alacritty/theme.generated.toml"'",
-):
-    with pathlib.Path(name).open("rb") as stream:
-        tomllib.load(stream)
-'
-}
-
-check_package_manifest() {
-    local class package extra
-    local failed=false
-    local -A seen=()
-
-    while read -r class package extra; do
-        [[ -n "${class:-}" ]] || continue
-        [[ "$class" == \#* ]] && continue
-
-        if [[ "$class" != required && "$class" != managed &&
-            "$class" != optional ]]; then
-            printf 'dotfiles: invalid package class: %s\n' "$class" >&2
-            failed=true
-        fi
-        if [[ -z "${package:-}" || -n "${extra:-}" ||
-            ! "$package" =~ ^[a-zA-Z0-9@._+-]+$ ]]; then
-            printf 'dotfiles: invalid Arch package entry: %s %s %s\n' \
-                "$class" "${package:-}" "${extra:-}" >&2
-            failed=true
-        elif [[ -n "${seen[$package]:-}" ]]; then
-            printf 'dotfiles: duplicate Arch package: %s\n' "$package" >&2
-            failed=true
-        else
-            seen[$package]=1
-        fi
-    done <"$DOTFILES_ROOT/packages.arch"
-
-    [[ "$failed" == false ]]
+check_dependencies() {
+    validate_deployments
 }
 
 check_deployment_layout() {
-    local directory package name source target strategy
-    local -A expected_packages=()
-
-    while IFS=$'\t' read -r name source target strategy; do
-        expected_packages["${source%%/*}"]=1
-    done < <(deployment_rows)
-
-    for directory in "$DOTFILES_ROOT"/*/; do
-        package="${directory%/}"
-        package="${package##*/}"
-        if [[ -z "${expected_packages[$package]:-}" ]]; then
-            printf 'dotfiles: visible directory has no deployment: %s\n' \
-                "$package" >&2
-            return 1
-        fi
-    done
+    validate_deployments
 }
 
 check_generated_theme() {
@@ -1135,13 +673,14 @@ check_generated_theme() {
 
 check_links() {
     local failed=false
-    local name source_root target strategy target_root source relative installed
+    local name source_root target source_kind install_method module
+    local target_root source relative installed
     local -A expected_targets=()
     local -A target_directories=()
 
-    while IFS=$'\t' read -r name source_root target strategy; do
+    while IFS=$'\t' read -r name source_root target source_kind install_method module; do
         target_root="$(deployment_target_root "$target")"
-        if [[ "$strategy" == directory ]]; then
+        if [[ "$source_kind" == directory ]]; then
             expected_targets["$target_root"]=1
             target_directories["$(dirname -- "$target_root")"]=1
             if ! link_matches "$DOTFILES_ROOT/$source_root" "$target_root"; then
@@ -1150,31 +689,30 @@ check_links() {
                 failed=true
             fi
             continue
-        elif [[ "$strategy" == file ]]; then
+        elif [[ "$source_kind" == file ]]; then
             expected_targets["$target_root"]=1
             target_directories["$(dirname -- "$target_root")"]=1
-            if ! link_matches "$DOTFILES_ROOT/$source_root" "$target_root"; then
-                printf 'dotfiles: link drift: %s -> %s\n' \
-                    "$target_root" "$DOTFILES_ROOT/$source_root" >&2
+            if ! deployment_matches \
+                "$DOTFILES_ROOT/$source_root" "$target_root" "$install_method"; then
+                printf 'dotfiles: %s drift: %s (source %s)\n' \
+                    "$install_method" "$target_root" "$DOTFILES_ROOT/$source_root" >&2
                 failed=true
             fi
             continue
         fi
 
         while IFS= read -r -d '' source; do
+            source="$DOTFILES_ROOT/$source"
             relative="${source#"$DOTFILES_ROOT/$source_root/"}"
             installed="$target_root/$relative"
             expected_targets["$installed"]=1
             target_directories["$(dirname -- "$installed")"]=1
-            if ! link_matches "$source" "$installed"; then
-                printf 'dotfiles: link drift: %s -> %s\n' \
-                    "$installed" "$source" >&2
+            if ! deployment_matches "$source" "$installed" "$install_method"; then
+                printf 'dotfiles: %s drift: %s (source %s)\n' \
+                    "$install_method" "$installed" "$source" >&2
                 failed=true
             fi
-        done < <(
-            find "$DOTFILES_ROOT/$source_root" \
-                \( -type f -o -type l \) -print0
-        )
+        done < <(deployment_source_files "$name")
     done < <(deployment_rows)
 
     local directory installed_link
@@ -1202,28 +740,8 @@ check_links() {
     [[ "$failed" == false ]]
 }
 
-check_active_settings() {
-    local target_root
-    local home_root
-    target_root="$(readlink -f -- "$DOTFILES_TARGET")"
-    home_root="$(readlink -f -- "$HOME")"
-    if [[ "$target_root" != "$home_root" ]]; then
-        return
-    fi
-
-    if command -v code >/dev/null 2>&1; then
-        code --list-extensions --show-versions 2>/dev/null |
-            grep -q '^nulifyer\.nulifyer-theme@1\.2\.0$'
-    fi
-
-    local brave_preferences="$HOME/.config/BraveSoftware/Brave-Browser/Default/Preferences"
-    if [[ -f "$brave_preferences" ]]; then
-        jq -e '.browser.custom_chrome_frame == false' \
-            "$brave_preferences" >/dev/null
-    fi
-
-    check_kde_settings
-    check_kde_project_picker
+check_module_settings() {
+    run_module_hooks check
 }
 
 check_all() {
@@ -1231,21 +749,19 @@ check_all() {
     git -C "$DOTFILES_ROOT" diff --check HEAD
     check_generated_theme
     check_json
-    check_shell
-    check_desktop_entries
-    check_toml
-    check_package_manifest
+    check_sources
+    check_dependencies
     check_deployment_layout
     check_links
-    check_active_settings
+    check_module_settings
     printf 'All local checks passed.\n'
 }
 
 show_status() {
     printf 'Repository: %s\n' "$DOTFILES_ROOT"
     printf 'Target:     %s\n' "$DOTFILES_TARGET"
-    printf 'Deployments: %s\n' \
-        "$(jq -r '[.deployments[].name] | join(" ")' "$LINK_CONFIG")"
+    printf '\nApplication modules:\n'
+    python3 "$MODULE_RUNNER" --root "$DOTFILES_ROOT" modules
     printf '\nGit status:\n'
     git -C "$DOTFILES_ROOT" status --short
     printf '\nConfigured MCP servers:\n'

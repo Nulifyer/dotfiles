@@ -1,0 +1,43 @@
+{
+  "$schema": "../.dotfiles/module.schema.json",
+  "version": 1,
+  "name": "kitty",
+  "dependencies": {
+    "commands": {
+      "managed": [
+        "kitty"
+      ]
+    },
+    "packages": {
+      "arch": {
+        "managed": [
+          "kitty"
+        ]
+      }
+    }
+  },
+  "deployments": [
+    {
+      "name": "config",
+      "source": "kitty.conf",
+      "target": ".config/kitty/kitty.conf",
+      "kind": "file",
+      "install": "link"
+    },
+    {
+      "name": "theme",
+      "source": "theme.generated.conf",
+      "target": ".config/kitty/theme.generated.conf",
+      "kind": "file",
+      "install": "link",
+      "generated": true
+    },
+    {
+      "name": "terminal-environment",
+      "source": "terminal.conf",
+      "target": ".config/environment.d/terminal.conf",
+      "kind": "file",
+      "install": "link"
+    }
+  ]
+}

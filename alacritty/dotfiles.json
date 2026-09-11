@@ -1,0 +1,36 @@
+{
+  "$schema": "../.dotfiles/module.schema.json",
+  "version": 1,
+  "name": "alacritty",
+  "dependencies": {
+    "commands": {
+      "managed": [
+        "alacritty"
+      ]
+    },
+    "packages": {
+      "arch": {
+        "managed": [
+          "alacritty"
+        ]
+      }
+    }
+  },
+  "deployments": [
+    {
+      "name": "config",
+      "source": "alacritty.toml",
+      "target": ".config/alacritty/alacritty.toml",
+      "kind": "file",
+      "install": "link"
+    },
+    {
+      "name": "theme",
+      "source": "theme.generated.toml",
+      "target": ".config/alacritty/theme.generated.toml",
+      "kind": "file",
+      "install": "link",
+      "generated": true
+    }
+  ]
+}

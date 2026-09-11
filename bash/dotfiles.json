@@ -1,0 +1,45 @@
+{
+  "$schema": "../.dotfiles/module.schema.json",
+  "version": 1,
+  "name": "bash",
+  "dependencies": {
+    "commands": {
+      "optional": [
+        "bat",
+        "eza"
+      ]
+    },
+    "packages": {
+      "arch": {
+        "optional": [
+          "bat",
+          "eza"
+        ]
+      }
+    }
+  },
+  "deployments": [
+    {
+      "name": "profile",
+      "source": "bash_profile",
+      "target": ".bash_profile",
+      "kind": "file",
+      "install": "link"
+    },
+    {
+      "name": "rc",
+      "source": "bashrc",
+      "target": ".bashrc",
+      "kind": "file",
+      "install": "link"
+    },
+    {
+      "name": "theme",
+      "source": "theme.generated.sh",
+      "target": ".config/bash/theme.generated.sh",
+      "kind": "file",
+      "install": "link",
+      "generated": true
+    }
+  ]
+}
