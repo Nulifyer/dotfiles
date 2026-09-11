@@ -18,10 +18,12 @@
 | D012 | Known contrast debt remains explicit. New failures and stale resolved exceptions fail the common renderer validation. | Existing light-theme failures should improve without accepting regressions. |
 | D013 | VS Code styles Rainbow CSV and Git Graph through the generated theme itself. It does not track a separate extension-version inventory. | The requested result is integrated color behavior, not extension management. |
 | D014 | The project picker uses portable C source and a locally compiled binary. | Generic `fd`, `find`, Bun, and Perl alternatives measured no faster than the pruned Python scanner. |
+| D015 | Build one focused, resident Quickshell launcher with `all`, `apps`, `projects`, and `themes` routes. Use a regular top-level window and app-owned KWin integration; do not build a Plasmoid, full shell, command menu, or plugin framework. | This keeps Omarchy 4's fast IPC and unified picker UX without importing its Hyprland and distribution-management scope or Plasma's mutable panel state. |
+| D016 | Keep KRunner available on `Alt+F2` through launcher qualification. Bind the new launcher to `Meta+Space` only after the resident-window and application-launch gates pass. | The fallback makes cutover reversible while focus, desktop-entry semantics, and multi-monitor behavior are proven on Plasma. |
+| D017 | `launcher/` owns the project scanner, launcher desktop/autostart entries, theme mapping, and launcher-specific KDE rules after cutover. Fish retains shell navigation commands; `applications/` does not retain launcher behavior. | The complete launcher lifecycle should be maintainable in one app folder. |
 
 ## Open decisions
 
-- Launcher replacement cutover policy after the prototype.
 - Window-zone implementation after hands-on qualification.
 - Future non-Arch platform support.
 

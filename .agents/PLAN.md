@@ -110,9 +110,11 @@ machine-local state.
    OpenCode, and Brave.
 4. **Live reload.** Make theme switching transactional and add per-app reload
    hooks with accurate capability reporting.
-5. **Launcher and window UX.** Prototype a Quickshell launcher inspired by
-   Omarchy 4, integrate project and theme selection, and qualify KZones or
-   PlasmaZones against the required FancyZones behavior.
+5. **Launcher and window UX.** Follow the bounded design and delivery gates in
+   `docs/launcher.md`: prove a resident Quickshell window on Plasma, add apps,
+   migrate projects, integrate themes, then cut over with KRunner retained as a
+   fallback. Separately qualify KZones or PlasmaZones against the required
+   FancyZones behavior.
 6. **Cleanup and reproducible setup.** Inventory KDE and package state, remove
    only approved items, split dependency profiles, and verify a clean-home or
    VM setup.
@@ -121,8 +123,6 @@ machine-local state.
 
 ## Open planning questions
 
-- Whether the launcher should fully replace KRunner shortcuts or coexist for a
-  probation period after the Quickshell prototype passes.
 - Whether PlasmaZones or KZones best matches the required spanning and manual
   resize behavior on this Plasma version.
 - Which non-Arch platforms, if any, should become supported after the primary

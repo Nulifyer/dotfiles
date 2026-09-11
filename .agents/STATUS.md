@@ -12,8 +12,9 @@ tracked.
 
 ## Current batch
 
-The public interface is now one command: `./dotfiles`. The old command router
-and the dependency metadata used only by `doctor` have been removed.
+The Omarchy 4 review and bounded launcher plan are complete. The chosen shape
+is one resident Quickshell launcher module for applications, projects, and
+themes while Plasma, KWin, and a KRunner fallback remain in place.
 
 ## In progress
 
@@ -28,9 +29,10 @@ and the dependency metadata used only by `doctor` have been removed.
 
 ## Next action
 
-Review Omarchy 4's current launcher/menu behavior, then define the smallest
-app launcher, project picker, and theme picker that fits this one-command apply
-interface.
+Implement the resident-window spike in `docs/launcher.md`: one Quickshell
+process, a regular top-level window, route IPC, focus, active-screen placement,
+and an app-owned KWin rule. Do not migrate the current project picker until the
+spike passes.
 
 ## Blockers
 
