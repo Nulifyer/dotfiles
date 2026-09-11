@@ -3,7 +3,6 @@
 set -euo pipefail
 
 source "$DOTFILES_ROOT/.dotfiles/lib.sh"
-dotfiles_kconfig apply "$DOTFILES_ROOT/kde/settings.json"
 
 state_root="$DOTFILES_ROOT/.theme/local"
 IFS= read -r scheme <"$state_root/kde-scheme"
@@ -36,3 +35,7 @@ else
     python3 "$DOTFILES_ROOT/kde/apply_scheme.py" \
         "$scheme_file" "$DOTFILES_TARGET/.config/kdeglobals"
 fi
+
+# Plasma applies scheme-owned defaults as part of activation. Portable KDE
+# preferences are authoritative and must be written after that operation.
+dotfiles_kconfig apply "$DOTFILES_ROOT/kde/settings.json"

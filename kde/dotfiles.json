@@ -11,6 +11,7 @@
     "commands": {
       "managed": [
         "kbuildsycoca6",
+        "gdbus",
         "kreadconfig6",
         "kwriteconfig6",
         "plasma-apply-colorscheme"
@@ -20,6 +21,7 @@
       "arch": {
         "managed": [
           "kconfig",
+          "glib2",
           "plasma-workspace",
           "ttf-cascadia-mono-nerd"
         ]

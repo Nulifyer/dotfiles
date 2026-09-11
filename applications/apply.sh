@@ -42,7 +42,13 @@ done
 
 if dotfiles_is_live_target && command -v qdbus6 >/dev/null 2>&1 && \
     qdbus6 org.kde.kglobalaccel >/dev/null 2>&1; then
-    qdbus6 org.kde.kglobalaccel /kglobalaccel \
-        org.kde.KGlobalAccel.unregister \
-        nulifyer-project-picker.desktop _launch >/dev/null 2>&1 || true
+    action_id="['nulifyer-project-picker.desktop', '_launch', "
+    action_id+="'Project Picker', 'Project Picker']"
+    # QKeySequence's portable integer encoding for Ctrl+Alt+P.
+    gdbus call --session \
+        --dest org.kde.kglobalaccel \
+        --object-path /kglobalaccel \
+        --method org.kde.KGlobalAccel.setForeignShortcut \
+        "$action_id" \
+        '[201326672]' >/dev/null
 fi

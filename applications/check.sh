@@ -45,6 +45,20 @@ if dotfiles_is_live_target && command -v qdbus6 >/dev/null 2>&1 && \
         printf 'dotfiles: KDE project picker shortcut is not registered\n' >&2
         failed=true
     fi
+    action_id="['nulifyer-project-picker.desktop', '_launch', "
+    action_id+="'Project Picker', 'Project Picker']"
+    shortcut="$(
+        gdbus call --session \
+            --dest org.kde.kglobalaccel \
+            --object-path /kglobalaccel \
+            --method org.kde.KGlobalAccel.shortcut \
+            "$action_id" \
+            2>/dev/null
+    )" || true
+    if [[ "$shortcut" != '([201326672],)' ]]; then
+        printf 'dotfiles: KDE project picker shortcut is not Ctrl+Alt+P\n' >&2
+        failed=true
+    fi
 fi
 
 [[ "$failed" == false ]]
