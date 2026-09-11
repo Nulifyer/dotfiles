@@ -645,6 +645,7 @@ check_sources() {
     python3 - \
         "$MODULE_RUNNER" \
         "$DOTFILES_ROOT/.dotfiles/kconfig.py" \
+        "$DOTFILES_ROOT/.theme/audit.py" \
         "$THEME_RENDERER" \
         "$DOTFILES_ROOT/.theme/check_kde.py" \
         "$DOTFILES_ROOT/.theme/test_golden.py" \
@@ -657,6 +658,7 @@ for name in sys.argv[1:]:
     compile(path.read_text(), path.name, "exec")
 PY
     python3 "$DOTFILES_ROOT/.tests/modules.py"
+    python3 "$DOTFILES_ROOT/.theme/audit.py"
     python3 "$DOTFILES_ROOT/.theme/test_golden.py"
     run_module_hooks validate true
 }

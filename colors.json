@@ -39,7 +39,7 @@
         "white": "#F3F4F5"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "yellow",
       "link": "blue",
       "match": "green",
@@ -87,7 +87,7 @@
         "white": "#FFFFFF"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "yellow",
       "link": "blue",
       "match": "green",
@@ -134,7 +134,7 @@
         "white": "#F2F4F8"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "magenta",
       "link": "cyan",
       "match": "green",
@@ -182,7 +182,7 @@
         "white": "#A5ADCE"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "magenta",
       "link": "blue",
       "match": "green",
@@ -230,7 +230,7 @@
         "white": "#BCC0CC"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "magenta",
       "link": "blue",
       "match": "green",
@@ -278,7 +278,7 @@
         "white": "#A5ADCB"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "magenta",
       "link": "blue",
       "match": "green",
@@ -326,7 +326,7 @@
         "white": "#A6ADC8"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "magenta",
       "link": "blue",
       "match": "green",
@@ -374,7 +374,7 @@
         "white": "#FBFCFC"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "magenta",
       "link": "cyan",
       "match": "green",
@@ -422,7 +422,7 @@
         "white": "#FFFFFF"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "blue",
       "link": "cyan",
       "match": "green",
@@ -470,7 +470,7 @@
         "white": "#D3C6AA"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "green",
       "link": "blue",
       "match": "cyan",
@@ -518,7 +518,7 @@
         "white": "#5C6A72"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "green",
       "link": "blue",
       "match": "cyan",
@@ -566,7 +566,7 @@
         "white": "#FFFCF0"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "yellow",
       "link": "blue",
       "match": "cyan",
@@ -614,7 +614,7 @@
         "white": "#F2F0E5"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "yellow",
       "link": "blue",
       "match": "cyan",
@@ -662,7 +662,7 @@
         "white": "#FFFFFF"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "blue",
       "link": "blue",
       "match": "green",
@@ -740,7 +740,7 @@
         "alternate": "#2A2827"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "yellow",
       "link": "blue",
       "match": "green",
@@ -788,7 +788,7 @@
         "white": "#3C3836"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "yellow",
       "link": "blue",
       "match": "green",
@@ -836,7 +836,7 @@
         "white": "#E3E6EE"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "magenta",
       "link": "cyan",
       "match": "green",
@@ -884,7 +884,7 @@
         "white": "#D2D4DE"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "blue",
       "link": "blue",
       "match": "green",
@@ -932,7 +932,7 @@
         "white": "#262A3F"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "blue",
       "link": "blue",
       "match": "green",
@@ -980,7 +980,7 @@
         "white": "#DCD7BA"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "blue",
       "link": "blue",
       "match": "green",
@@ -1027,7 +1027,7 @@
         "white": "#D8D0E4"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "magenta",
       "link": "blue",
       "match": "green",
@@ -1075,7 +1075,7 @@
         "white": "#FFFFFF"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "cyan",
       "link": "blue",
       "match": "green",
@@ -1122,7 +1122,7 @@
         "white": "#CAC9DD"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "magenta",
       "link": "blue",
       "match": "green",
@@ -1170,7 +1170,7 @@
         "white": "#F9F8F5"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "yellow",
       "link": "blue",
       "match": "green",
@@ -1217,7 +1217,7 @@
         "white": "#E4E4E4"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "blue",
       "link": "cyan",
       "match": "green",
@@ -1265,7 +1265,7 @@
         "white": "#E4E4E5"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "cyan",
       "link": "blue",
       "match": "green",
@@ -1313,7 +1313,7 @@
         "white": "#ECEFF4"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "cyan",
       "link": "cyan",
       "match": "green",
@@ -1361,7 +1361,7 @@
         "white": "#ABB2BF"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "blue",
       "link": "blue",
       "match": "green",
@@ -1409,7 +1409,7 @@
         "white": "#F2F4F8"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "magenta",
       "link": "cyan",
       "match": "green",
@@ -1457,7 +1457,7 @@
         "white": "#F2F4F8"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "magenta",
       "link": "blue",
       "match": "green",
@@ -1505,7 +1505,7 @@
         "white": "#FFFFFF"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "magenta",
       "link": "cyan",
       "match": "green",
@@ -1552,7 +1552,7 @@
         "white": "#FFFFFF"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "green",
       "link": "blue",
       "match": "cyan",
@@ -1600,7 +1600,7 @@
         "white": "#E0DEF4"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "magenta",
       "link": "cyan",
       "match": "green",
@@ -1648,7 +1648,7 @@
         "white": "#575279"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "magenta",
       "link": "blue",
       "match": "green",
@@ -1696,7 +1696,7 @@
         "white": "#FDF6E3"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "blue",
       "link": "blue",
       "match": "green",
@@ -1744,7 +1744,7 @@
         "white": "#FFFFFF"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "blue",
       "link": "cyan",
       "match": "green",
@@ -1792,7 +1792,7 @@
         "white": "#C0CAF5"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "blue",
       "link": "cyan",
       "match": "green",
@@ -1840,7 +1840,7 @@
         "white": "#343B58"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "blue",
       "link": "blue",
       "match": "green",
@@ -1888,7 +1888,7 @@
         "white": "#FFFFFF"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "yellow",
       "link": "green",
       "match": "green",
@@ -1936,7 +1936,7 @@
         "white": "#FFFFFF"
       }
     },
-    "vscode": {
+    "roles": {
       "accent": "cyan",
       "link": "cyan",
       "match": "green",

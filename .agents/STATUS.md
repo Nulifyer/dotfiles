@@ -22,11 +22,16 @@ from a partial palette into a semantic, auditable source for every adapter.
 
 - Gruvbox and Gruvbox Light catalog entries and generated app outputs are
   protected by hash-based golden fixtures before renderer semantics change.
+- The old VS Code-named overrides are now application-neutral semantic roles.
+  Strict catalog validation rejects missing fields, unknown keys, malformed
+  colors, unknown roles, and invalid role references.
+- A contrast baseline identifies 20 known failures across 9 themes without
+  changing any generated output.
 
 ## Next action
 
-Define and validate the semantic color roles needed by KDE, VS Code, terminals,
-Brave, launchers, and app interaction states.
+Add explicit surface and selection-foreground roles, record palette provenance,
+then repair the non-Gruvbox light-theme contrast failures.
 
 ## Blockers
 
@@ -39,6 +44,8 @@ Brave, launchers, and app interaction states.
 - `.tests/setup.sh` passes an isolated KDE-targeted link, apply, check, and
   unlink round trip without leaving managed links behind.
 - `DOTFILES_DESKTOP=none` skips KDE-owned modules and dependencies.
+- A before/after hash comparison proved all 2,040 generated files are unchanged
+  by the semantic-role rename and strict validation.
 - Baseline environment: CachyOS, Wayland, Plasma and KWin 6.7.4, VS Code
   1.136.1.
 - Baseline worktree edits to preserve: `fish/conf.d/projects.fish`,

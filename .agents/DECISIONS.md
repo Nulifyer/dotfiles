@@ -14,6 +14,8 @@
 | D008 | Track portable intent, inputs, manifests, hooks, and tests. Ignore generated theme output and mutable machine or session state. | Theme selection must not dirty Git, and wholesale application state includes unrelated and machine-specific data. | Existing repository model and approved plan. |
 | D009 | Cleanup is evidence-based and staged. Inventory first; delete packages or user data only after explicit review. | Installed KDE state may contain user data and unrelated configuration. | User requested strong cleanup; repository safety agreement. |
 | D010 | Deliver logical verified batches as focused commits without staging the existing unrelated worktree changes. | The project must remain recoverable and its history reviewable. | User requested proper Git tracking; existing dirty worktree observed on 2026-09-11. |
+| D011 | Semantic color roles are application-neutral; each app adapter decides which role a property uses and whether neighboring surfaces should blend or contrast. | VS Code can intentionally hide low-value borders while Brave tabs need visible separation, even when both share one palette. | User direction and theme-model audit, 2026-09-11. |
+| D012 | Contrast debt is explicit and regression-tested. New failures and stale resolved exceptions both fail validation. | Existing light themes have known failures; a checked baseline lets improvements land incrementally without silently accepting more debt. | Automated WCAG-style contrast audit, 2026-09-11. |
 
 ## Open decisions
 

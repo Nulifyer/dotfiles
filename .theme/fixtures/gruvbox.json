@@ -2,7 +2,7 @@
   "version": 1,
   "themes": {
     "gruvbox": {
-      "catalog_sha256": "794e03479fb21f1d392e5be1975cab15ca845b661000c7db76b2ad71707e971e",
+      "catalog_sha256": "c17b9843892a308149277b2ac02027f99711dd15e176aebd60ef9a1121f3d9fa",
       "outputs": {
         "alacritty/theme.generated.toml": "38063e649559a894d372cd5a4311f90c10edbd37cf23b032cc43dee2de51f76b",
         "bash/theme.generated.sh": "d2bef4c3496cd2b773cb4492bf79f563f968665ce4b9cfa05203f3752f2bf3a1",
@@ -16,7 +16,7 @@
       }
     },
     "gruvbox_light": {
-      "catalog_sha256": "5bdf8b222821fdca1ce1a5c631ad8d65b3c2c46273af970ddd5abdd4a689bf98",
+      "catalog_sha256": "5850cbc697989cf97220e6bcbc50be90fe16c3e21614bb271a7fb97eb34ff6ab",
       "outputs": {
         "alacritty/theme.generated.toml": "8c712c184476df31bbc3a8d0e1f1006fb3c3194f8c1838bd54664bd1f107bb4c",
         "bash/theme.generated.sh": "9ab21182cc9f7516068f4528dbd337b3936e1facf4387c2bdd93de0bd8d1a6b8",

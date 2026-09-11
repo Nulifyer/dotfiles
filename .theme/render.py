@@ -23,7 +23,7 @@ OPENCODE_THEME_PATH = Path(
     "opencode/themes/nulifyer.json"
 )
 
-ROLE_DEFAULTS = {
+SEMANTIC_ROLE_DEFAULTS = {
     "accent": "cyan",
     "link": "green",
     "match": "green",
@@ -162,7 +162,7 @@ def scheme_context(theme: dict[str, Any]) -> dict[str, str]:
     )
     context["bgHover"] = context["fg"] + "15"
 
-    role_spec = theme.get("vscode", {})
+    role_spec = theme["roles"]
     resolved: dict[str, str] = {}
 
     def resolve_role(role: str, stack: tuple[str, ...] = ()) -> str:
@@ -170,24 +170,21 @@ def scheme_context(theme: dict[str, Any]) -> dict[str, str]:
             return resolved[role]
         if role in stack:
             raise ValueError(f"circular VS Code role: {' -> '.join((*stack, role))}")
-        token = str(role_spec.get(role, ROLE_DEFAULTS[role]))
+        token = str(role_spec.get(role, SEMANTIC_ROLE_DEFAULTS[role]))
         if HEX_COLOR.fullmatch(token):
             value = normalize_hex(token)
         elif token in context:
             value = context[token]
-        elif token in ROLE_DEFAULTS:
+        elif token in SEMANTIC_ROLE_DEFAULTS:
             value = resolve_role(token, (*stack, role))
         else:
-            fallback = ROLE_DEFAULTS[role]
-            value = (
-                context[fallback]
-                if fallback in context
-                else resolve_role(fallback, (*stack, role))
+            raise ValueError(
+                f"unknown semantic color reference for {role}: {token}"
             )
         resolved[role] = value
         return value
 
-    for role in ROLE_DEFAULTS:
+    for role in SEMANTIC_ROLE_DEFAULTS:
         context[role] = resolve_role(role)
     return context
 
@@ -689,20 +686,66 @@ def render_kde(
 
 
 def validate_theme(key: str, theme: dict[str, Any]) -> None:
+    required_keys = {
+        "name",
+        "variant",
+        "bat_theme",
+        "prompt",
+        "terminal",
+        "roles",
+    }
+    optional_keys = {"lutgen_palette", "kde"}
+    if not isinstance(theme, dict):
+        raise ValueError(f"{key}: theme must be an object")
+    missing_keys = required_keys - set(theme)
+    unknown_keys = set(theme) - required_keys - optional_keys
+    if missing_keys:
+        raise ValueError(f"{key}: missing theme keys: {sorted(missing_keys)}")
+    if unknown_keys:
+        raise ValueError(f"{key}: unknown theme keys: {sorted(unknown_keys)}")
+    for field in ("name", "bat_theme"):
+        if not isinstance(theme[field], str) or not theme[field]:
+            raise ValueError(f"{key}: {field} must be a non-empty string")
+    if "lutgen_palette" in theme and (
+        not isinstance(theme["lutgen_palette"], str)
+        or not theme["lutgen_palette"]
+    ):
+        raise ValueError(f"{key}: lutgen_palette must be a non-empty string")
     if theme.get("variant") not in {"dark", "light"}:
         raise ValueError(f"{key}: variant must be dark or light")
     required_prompt = {"os", "user", "path", "git", "ok", "err", "duration"}
-    if set(theme.get("prompt", {})) != required_prompt:
+    if (
+        not isinstance(theme.get("prompt"), dict)
+        or set(theme["prompt"]) != required_prompt
+    ):
         raise ValueError(f"{key}: prompt schema is incomplete")
-    terminal = theme.get("terminal", {})
+    for role, value in theme["prompt"].items():
+        if not isinstance(value, str) or not re.fullmatch(
+            r"[0-9A-Fa-f]{6}", value
+        ):
+            raise ValueError(f"{key}: invalid prompt color {role}: {value}")
+    terminal = theme.get("terminal")
+    if not isinstance(terminal, dict):
+        raise ValueError(f"{key}: terminal must be an object")
     for field in ("bg", "fg", "cursor", "selection"):
         normalize_hex(terminal[field])
     ansi = {"black", "red", "green", "yellow", "blue", "magenta", "cyan", "white"}
     for group in ("normal", "bright"):
-        if set(terminal.get(group, {})) != ansi:
+        if not isinstance(terminal.get(group), dict) or set(terminal[group]) != ansi:
             raise ValueError(f"{key}: terminal.{group} schema is incomplete")
         for value in terminal[group].values():
             normalize_hex(value)
+    role_spec = theme["roles"]
+    if not isinstance(role_spec, dict):
+        raise ValueError(f"{key}: roles must be an object")
+    unknown_semantic_roles = set(role_spec) - set(SEMANTIC_ROLE_DEFAULTS)
+    if unknown_semantic_roles:
+        raise ValueError(
+            f"{key}: unknown semantic roles: {sorted(unknown_semantic_roles)}"
+        )
+    for role, value in role_spec.items():
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"{key}: semantic role {role} must be a string")
     kde_sets = {
         "button",
         "complementary",
@@ -714,6 +757,8 @@ def validate_theme(key: str, theme: dict[str, Any]) -> None:
         "window",
     }
     kde_spec = theme.get("kde", {})
+    if not isinstance(kde_spec, dict):
+        raise ValueError(f"{key}: kde must be an object")
     unknown_sets = set(kde_spec) - kde_sets
     if unknown_sets:
         raise ValueError(f"{key}: unknown KDE color sets: {sorted(unknown_sets)}")

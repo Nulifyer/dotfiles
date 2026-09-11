@@ -7,7 +7,10 @@ These tracked JSON files define the Nulifyer VS Code theme generation model:
 - `semantic.json`: 62 semantic token rules
 
 They are maintained as part of this repository. `.theme/render.py` resolves
-their roles against the selected entry in the root `colors.json`.
+their app-property mappings against the shared semantic `roles` in the selected
+root `colors.json` entry. The name is intentional: status, interaction, and
+version-control meaning is shared by other adapters and is not owned by VS
+Code.
 
 `./dotfiles theme NAME` writes the ignored local extension into the `vscode`
 Stow package. `package.json` is its tracked template; the other three files are

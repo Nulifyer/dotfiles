@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "known_failures": {
+    "catppuccin_latte": [
+      "accent.nonText",
+      "selection.foreground",
+      "status.success",
+      "status.warning"
+    ],
+    "everforest_light": [
+      "accent.nonText",
+      "selection.foreground",
+      "status.success",
+      "status.warning"
+    ],
+    "flexoki_light": [
+      "selection.foreground"
+    ],
+    "gruvbox_light": [
+      "accent.nonText",
+      "selection.foreground",
+      "status.success",
+      "status.warning"
+    ],
+    "iceberg_light": [
+      "status.warning"
+    ],
+    "oxocarbon_light": [
+      "status.success",
+      "status.warning"
+    ],
+    "rose_pine_dawn": [
+      "selection.foreground",
+      "status.warning"
+    ],
+    "solarized": [
+      "selection.foreground"
+    ],
+    "spaceduck": [
+      "selection.foreground"
+    ]
+  }
+}

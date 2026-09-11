@@ -55,7 +55,9 @@ def main() -> int:
                     failures.append(f"{theme_name}: cannot read {relative}: {error}")
                     continue
                 if actual_digest != expected_digest:
-                    failures.append(f"{theme_name}: rendered output changed: {relative}")
+                    failures.append(
+                        f"{theme_name}: rendered output changed: {relative}"
+                    )
 
     for failure in failures:
         print(f"theme golden: {failure}", file=sys.stderr)

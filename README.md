@@ -130,6 +130,12 @@ root `colors.json` catalog and app-owned manifests are repository inputs.
 Generated palette files are ignored by Git and must be created locally with
 `./dotfiles theme NAME`.
 
+`.theme/colors.schema.json` documents the catalog shape. Palette values remain
+theme data in `colors.json`; application folders map their own properties to
+shared semantic roles such as accent, link, success, warning, and error. This
+keeps a VS Code border decision independent from a Brave tab-separation
+decision even when both use the same palette.
+
 ## KDE
 
 Mutable files such as `kdeglobals` and `kwinrc` are deliberately not linked,

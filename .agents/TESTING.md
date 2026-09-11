@@ -19,6 +19,7 @@
 ```text
 git diff --check
 python3 .theme/render.py --validate
+python3 .theme/audit.py
 python3 .theme/test_golden.py
 bash -n dotfiles
 python3 .tests/modules.py
@@ -50,3 +51,6 @@ bash .tests/setup.sh
 ## Project notes
 
 - Gruvbox golden fixtures must exist before changing renderer semantics.
+- `contrast-baseline.json` is debt, not policy. Remove an exception in the same
+  change that fixes it; do not rebaseline a new failure without a documented
+  visual decision.
