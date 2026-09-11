@@ -2,55 +2,38 @@
 
 ## Evidence standard
 
-- Fast checks must validate syntax, schemas, manifest ownership, generated
-  output, and isolated deployment behavior without modifying the live home.
-- Full checks may inspect live application state. They must identify existing
-  drift separately from regressions introduced by the current batch.
-- Visual theme completion requires screenshots or direct inspection of the
-  named application states. A schema or contrast pass alone does not prove a
-  theme looks correct.
-- A passing app hook test proves only that hook's declared settings and cleanup
-  ownership. It does not prove the rest of the application's mutable state.
-- Cleanup tests use a temporary target home and must prove unrelated files are
-  preserved.
+- `apply` must work in a temporary target home and a second run must converge.
+- Cleanup tests prove only repository-owned links are removed and unrelated
+  files remain.
+- Theme validation renders every catalog theme through every adapter and checks
+  the shared contrast baseline plus VS Code extension color mappings.
+- Visual theme completion still requires direct inspection or screenshots.
 
 ## Fast checks
 
 ```text
-git diff --check
+bash -n dotfiles .dotfiles/lib.sh */apply.sh */reload.sh
 python3 .theme/render.py --validate
-python3 .theme/audit.py
-python3 .theme/test_golden.py
-bash -n dotfiles
 python3 .tests/modules.py
+fish .tests/project_picker.fish
+git diff --check
 ```
 
 ## Full checks
 
 ```text
 ./dotfiles doctor
-./dotfiles check
 bash .tests/setup.sh
 ```
 
 ## Environment
 
-- Primary environment is CachyOS with Plasma and KWin 6.7.4 on Wayland.
-- Required baseline commands are Bash, Git, jq, Python 3, and sha256sum.
-- App hooks must tolerate an absent live desktop bus when an isolated target is
-  used.
-- VS Code theme qualification currently targets 1.136.1 with Rainbow CSV
-  3.24.1 and Git Graph 1.30.0.
+- Primary target: CachyOS or Arch, Plasma, KWin, and Wayland.
+- Baseline commands: Bash, Git, jq, Python 3, and a C compiler.
+- Apply hooks must tolerate an absent live desktop bus for temporary homes.
 
 ## Known gaps
 
-- There is no visual screenshot harness yet.
+- There is no visual screenshot harness.
 - Live reload has not been qualified for VS Code, OpenCode, or Brave.
-- There is no package installation command or disposable VM qualification yet.
-
-## Project notes
-
-- Gruvbox golden fixtures must exist before changing renderer semantics.
-- `contrast-baseline.json` is debt, not policy. Remove an exception in the same
-  change that fixes it; do not rebaseline a new failure without a documented
-  visual decision.
+- There is no disposable VM qualification.

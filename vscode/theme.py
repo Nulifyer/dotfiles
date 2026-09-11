@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the app-owned VS Code theme extension."""
+"""Render the VS Code theme and its local extension manifest."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 
-THEME_ROOT = Path(__file__).resolve().parent
+VSCODE_ROOT = Path(__file__).resolve().parent
 
 
 def load_json(path: Path) -> Any:
@@ -21,9 +21,9 @@ def render(
     context: dict[str, str],
     resolve: Callable[[str, dict[str, str]], str],
 ) -> tuple[str, str]:
-    workbench = load_json(THEME_ROOT / "workbench.json")
-    tokens = load_json(THEME_ROOT / "tokens.json")
-    semantic = load_json(THEME_ROOT / "semantic.json")
+    workbench = load_json(VSCODE_ROOT / "workbench.json")
+    tokens = load_json(VSCODE_ROOT / "tokens.json")
+    semantic = load_json(VSCODE_ROOT / "semantic.json")
 
     color_theme = {
         "$schema": "vscode://schemas/color-theme",
@@ -61,32 +61,43 @@ def render(
         },
     }
 
-    package = load_json(THEME_ROOT / "package.json")
-    package["description"] = (
-        "Theme generated from Nulifyer's shared colors catalog"
-    )
-    package["version"] = "1.2.0"
-    package["contributes"]["themes"][0]["uiTheme"] = (
-        "vs" if theme["variant"] == "light" else "vs-dark"
-    )
-    package["contributes"]["configurationDefaults"] = {
-        "git-graph.graph.colours": [
-            resolve(f"contrast:{role}:uiBackground:3.0", context)
-            for role in (
-                "blue",
-                "magenta",
-                "green",
-                "yellow",
-                "cyan",
-                "red",
-                "brightBlue",
-                "brightMagenta",
-                "brightGreen",
-                "brightYellow",
-                "brightCyan",
-                "brightRed",
-            )
-        ]
+    package = {
+        "name": "nulifyer-theme",
+        "displayName": "Nulifyer",
+        "publisher": "nulifyer",
+        "version": "1.2.0",
+        "engines": {"vscode": "^1.60.0"},
+        "categories": ["Themes"],
+        "contributes": {
+            "themes": [
+                {
+                    "label": "Nulifyer",
+                    "uiTheme": (
+                        "vs" if theme["variant"] == "light" else "vs-dark"
+                    ),
+                    "path": "./themes/nulifyer.json",
+                }
+            ],
+            "configurationDefaults": {
+                "git-graph.graph.colours": [
+                    resolve(f"contrast:{role}:uiBackground:3.0", context)
+                    for role in (
+                        "blue",
+                        "magenta",
+                        "green",
+                        "yellow",
+                        "cyan",
+                        "red",
+                        "brightBlue",
+                        "brightMagenta",
+                        "brightGreen",
+                        "brightYellow",
+                        "brightCyan",
+                        "brightRed",
+                    )
+                ]
+            },
+        },
     }
 
     return (

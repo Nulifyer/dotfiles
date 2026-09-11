@@ -2,37 +2,31 @@
 
 ## Binding decisions
 
-| ID | Decision | Reason | Evidence |
-| --- | --- | --- | --- |
-| D001 | Each application folder owns its configuration, deployment, lifecycle hooks, theme mapping, fixtures, and app-specific desktop integration. | Ownership must be visible and local so the root runner does not become a second configuration repository. | User direction, 2026-09-11. |
-| D002 | Use a visible `dotfiles.json` manifest and standard optional `validate.sh`, `apply.sh`, `check.sh`, `reload.sh`, and `clean.sh` lifecycle files in application folders. | A consistent contract makes placement, install behavior, and maintenance discoverable without reading the root implementation. | User requested a standard app-local setup; interface selected during inception. |
-| D003 | Declare source kind separately from install method. Kinds are `file`, `contents`, and `directory`; methods are `link` and `copy`. | The existing `file` and `contents` strategies imply linking and cannot plainly express an atomic installed copy. | Current `link-config.json` and user direction. |
-| D004 | The root runner detects capabilities and explains why modules are enabled or skipped. Explicit profile overrides support headless setup and tests. | Live desktop environment variables are useful evidence but cannot be the only setup mechanism. | User requested KDE-gated behavior. |
-| D005 | Shared KDE settings belong to `kde/`; KDE behavior specific to one app belongs to that app. | The VS Code focus rule is VS Code behavior even though KWin applies it. | User direction, 2026-09-11. |
-| D006 | Keep Plasma and KWin as the primary desktop. Evaluate Quickshell first as a focused launcher and theme picker. | Current machine is Plasma 6.7.4 on Wayland; a complete shell replacement would add a large QML codebase before the ownership and theme work is stable. | Local environment inspection and approved plan. |
-| D007 | Freeze Gruvbox and Gruvbox Light palette values and preserve approved visual behavior with golden fixtures. | The user explicitly likes the existing Gruvbox themes. | User direction. |
-| D008 | Track portable intent, inputs, manifests, hooks, and tests. Ignore generated theme output and mutable machine or session state. | Theme selection must not dirty Git, and wholesale application state includes unrelated and machine-specific data. | Existing repository model and approved plan. |
-| D009 | Cleanup is evidence-based and staged. Inventory first; delete packages or user data only after explicit review. | Installed KDE state may contain user data and unrelated configuration. | User requested strong cleanup; repository safety agreement. |
-| D010 | Deliver logical verified batches as focused commits without staging the existing unrelated worktree changes. | The project must remain recoverable and its history reviewable. | User requested proper Git tracking; existing dirty worktree observed on 2026-09-11. |
-| D011 | Semantic color roles are application-neutral; each app adapter decides which role a property uses and whether neighboring surfaces should blend or contrast. | VS Code can intentionally hide low-value borders while Brave tabs need visible separation, even when both share one palette. | User direction and theme-model audit, 2026-09-11. |
-| D012 | Contrast debt is explicit and regression-tested. New failures and stale resolved exceptions both fail validation. | Existing light themes have known failures; a checked baseline lets improvements land incrementally without silently accepting more debt. | Automated WCAG-style contrast audit, 2026-09-11. |
-| D013 | App adapters pin the third-party versions whose integration contracts they consume. | Extension settings, contributed color IDs, and grammar scopes can change independently of VS Code itself. | Rainbow CSV 3.24.1 and Git Graph 1.30.0 package inspection, 2026-09-11. |
+| ID | Decision | Reason |
+| --- | --- | --- |
+| D001 | Each application folder owns its configuration, deployment, theme mapping, optional apply or reload hook, and app-specific desktop integration. | Ownership should be visible without a second central configuration. |
+| D002 | `apply` is the one reconciliation interface. It generates the theme, deploys files, removes obsolete owned links, applies app settings, and reloads supported apps. | Separate link, validate, check, and settings passes duplicated work and made routine use harder. |
+| D003 | A manifest deployment defaults to a linked file. `kind` and `install` appear only for directory deployment or copies. | The common case should need only source and target. |
+| D004 | The root runner detects KDE and supports `DOTFILES_DESKTOP` for headless use and tests. | Desktop-specific work must be skipped outside its desktop. |
+| D005 | `kde/` owns only theme state. KDE settings tied to one app live in that app; generic KDE preferences are not tracked. | The repository must remain portable and app ownership must stay local. |
+| D006 | Keep Plasma and KWin. Evaluate Quickshell as a launcher and theme picker before considering a wider replacement. | The launcher can improve without replacing the desktop. |
+| D007 | Gruvbox and Gruvbox Light keep their approved palette values but use the same renderer and checks as every theme. | Special golden fixtures duplicate the normal theme system. |
+| D008 | Track portable inputs and generators. Ignore generated themes, compiled binaries, credentials, histories, caches, sessions, and device state. | A clone must describe intent without capturing one machine. |
+| D009 | Cleanup removes only state with ownership evidence. Package or user-data removal requires review. | Broad cleanup can destroy unrelated state. |
+| D010 | Deliver coherent verified commits without sweeping in unrelated work. | Git history is the durable recovery and review path. |
+| D011 | Semantic roles are app-neutral. Each app chooses whether its own borders and neighboring surfaces blend or contrast. | VS Code and browser navigation need different separation policies. |
+| D012 | Known contrast debt remains explicit. New failures and stale resolved exceptions fail the common renderer validation. | Existing light-theme failures should improve without accepting regressions. |
+| D013 | VS Code styles Rainbow CSV and Git Graph through the generated theme itself. It does not track a separate extension-version inventory. | The requested result is integrated color behavior, not extension management. |
+| D014 | The project picker uses portable C source and a locally compiled binary. | Generic `fd`, `find`, Bun, and Perl alternatives measured no faster than the pruned Python scanner. |
 
 ## Open decisions
 
 - Launcher replacement cutover policy after the prototype.
 - Window-zone implementation after hands-on qualification.
 - Future non-Arch platform support.
-- Whether KDE should manage the file-dialog decoration position, hidden-file
-  default, and task-switcher layout. The live values differ from the retired
-  central registry, so the ownership foundation deliberately leaves them
-  untouched until the KDE inventory is reviewed.
 
 ## Superseded decisions
 
-- None.
-
-## Project notes
-
-- The root must not contain new application-specific arrays comparable to the
-  current KDE settings and package lists.
+- Per-app `validate.sh`, `check.sh`, and `clean.sh` lifecycle files.
+- Separate Gruvbox golden fixtures and JSON schema documents.
+- A pinned VS Code extension inventory for theme integration.

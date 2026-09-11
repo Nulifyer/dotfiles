@@ -2,31 +2,31 @@
 
 ## Ownership
 
-- Each top-level application folder owns that application's tracked
-  configuration, deployment declarations, theme adapter, lifecycle hooks, and
-  checks.
-- Keep the root `dotfiles` command a generic orchestrator. Do not add
-  application-specific settings or package lists to it.
-- Keep shared desktop behavior under the desktop owner. KDE-specific behavior
-  for one application belongs to that application's folder, not `kde/`.
-- Declare deployed paths in the owning folder's `dotfiles.json`. Use the
-  standard optional lifecycle names `validate.sh`, `apply.sh`, `check.sh`,
-  `reload.sh`, and `clean.sh`.
-- Keep app-specific theme property maps under the owning app folder. `.theme`
-  owns only shared color resolution, validation, audits, and protected
-  fixtures.
+- Each top-level application folder owns its configuration, deployment
+  declarations, theme mapping, app-specific desktop integration, and optional
+  `apply.sh` or `reload.sh`.
+- Keep the root `dotfiles` command generic. `apply` is the single reconciliation
+  path for theme generation, deployment, cleanup, app settings, and reloads.
+- Declare deployed paths in the owner's `dotfiles.json`. A deployment defaults
+  to a linked file; declare copies and directory deployments explicitly.
+- `.theme` owns shared color resolution and catalog validation. App-specific
+  property maps stay flat in the owning app folder.
+- `kde/` owns only theme configuration. Generic KDE preferences do not belong
+  in this repository. KDE behavior for one app belongs to that app.
 
-## Safety and delivery
+## Portability and delivery
 
-- Preserve the existing Gruvbox and Gruvbox Light palette values and approved
-  visual behavior unless the user explicitly changes that decision.
-- Track portable desired state and generators. Do not track mutable session,
-  device, cache, history, credential, or generated theme state.
-- Cleanup must be scoped to state that a module can prove it owns. Report
-  removal candidates before deleting packages or user data.
-- Preserve unrelated worktree changes. Stage and commit only the verified
-  logical batch being delivered.
+- Preserve Gruvbox and Gruvbox Light palette values unless the user changes
+  that decision. Test them through the same path as every other theme.
+- Track portable inputs and generators. Do not track compiled output, generated
+  themes, mutable session or device state, caches, histories, or credentials.
+- Cleanup may remove only state whose repository ownership can be proved.
+- Preserve unrelated work. Stage and commit only the verified logical batch.
 
 ## Project continuity
 
-For long-running work, read `.agents/README.md` and keep its indexed files current. Use `project-continuity` when resuming, closing a verified batch, recovering after compaction, or preparing a handoff. When autonomous commits are authorized, repeat one logical batch: implement and update owning records, validate and test, stage only that batch, commit, then continue from one next action.
+For long-running work, read `.agents/README.md` and keep its indexed files
+current. Use `project-continuity` when resuming or closing a batch. When commits
+are authorized, implement one coherent result, update its records, test it,
+inspect and stage only that result, commit it, then continue from one next
+action.

@@ -1,8 +1,0 @@
-{
-  "version": 1,
-  "settings": [
-    { "file": "kdeglobals", "groups": ["General"], "key": "TerminalApplication", "value": "kitty" },
-    { "file": "kdeglobals", "groups": ["General"], "key": "TerminalService", "value": "kitty.desktop" }
-  ],
-  "lists": []
-}

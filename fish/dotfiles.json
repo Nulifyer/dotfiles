@@ -1,64 +1,15 @@
 {
-  "$schema": "../.dotfiles/module.schema.json",
-  "version": 1,
-  "name": "fish",
-  "dependencies": {
-    "commands": {
-      "managed": [
-        "fish",
-        "fzf"
-      ],
-      "optional": [
-        "bat",
-        "chafa",
-        "curl",
-        "eza"
-      ]
-    },
-    "packages": {
-      "arch": {
-        "managed": [
-          "fish",
-          "fzf"
-        ],
-        "optional": [
-          "bat",
-          "chafa",
-          "curl",
-          "eza"
-        ]
-      }
-    }
+  "commands": {
+    "managed": ["cc", "fish", "fzf"],
+    "optional": ["bat", "chafa", "curl", "eza"]
+  },
+  "packages": {
+    "managed": ["fish", "fzf", "gcc"],
+    "optional": ["bat", "chafa", "curl", "eza"]
   },
   "deployments": [
-    {
-      "name": "config",
-      "source": "config.fish",
-      "target": ".config/fish/config.fish",
-      "kind": "file",
-      "install": "link"
-    },
-    {
-      "name": "conf",
-      "source": "conf.d",
-      "target": ".config/fish/conf.d",
-      "kind": "contents",
-      "install": "link"
-    },
-    {
-      "name": "tools",
-      "source": "tools",
-      "target": ".config/fish/tools",
-      "kind": "contents",
-      "install": "link"
-    },
-    {
-      "name": "theme",
-      "source": "themes/current.fish",
-      "target": ".config/fish/themes/current.fish",
-      "kind": "file",
-      "install": "link",
-      "generated": true
-    }
+    { "source": "config.fish", "target": ".config/fish/config.fish" },
+    { "source": "conf.d", "target": ".config/fish/conf.d", "kind": "contents" },
+    { "source": "themes/current.fish", "target": ".config/fish/themes/current.fish" }
   ]
 }

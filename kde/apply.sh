@@ -32,10 +32,6 @@ if dotfiles_is_live_target; then
         exit 1
     fi
 else
-    python3 "$DOTFILES_ROOT/kde/apply_scheme.py" \
-        "$scheme_file" "$DOTFILES_TARGET/.config/kdeglobals"
+    kwriteconfig6 --file "$DOTFILES_TARGET/.config/kdeglobals" \
+        --group General --key ColorScheme -- "$scheme"
 fi
-
-# Plasma applies scheme-owned defaults as part of activation. Portable KDE
-# preferences are authoritative and must be written after that operation.
-dotfiles_kconfig apply "$DOTFILES_ROOT/kde/settings.json"

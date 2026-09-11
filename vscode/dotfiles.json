@@ -1,36 +1,12 @@
 {
-  "$schema": "../.dotfiles/module.schema.json",
-  "version": 1,
-  "name": "vscode",
-  "dependencies": {
-    "commands": {
-      "managed": [
-        "code"
-      ]
-    },
-    "packages": {
-      "arch": {
-        "managed": [
-          "visual-studio-code-bin"
-        ]
-      }
-    }
-  },
+  "commands": { "managed": ["code"] },
+  "packages": { "managed": ["visual-studio-code-bin"] },
   "deployments": [
+    { "source": "settings.json", "target": ".config/Code/User/settings.json" },
     {
-      "name": "settings",
-      "source": "settings.json",
-      "target": ".config/Code/User/settings.json",
-      "kind": "file",
-      "install": "link"
-    },
-    {
-      "name": "theme-extension",
       "source": "extension",
       "target": ".vscode/extensions/nulifyer.nulifyer-theme-1.2.0",
-      "kind": "contents",
-      "install": "link",
-      "generated": true
+      "kind": "contents"
     }
   ]
 }

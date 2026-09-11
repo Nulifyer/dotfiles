@@ -1,22 +1,10 @@
 {
-  "$schema": "../.dotfiles/module.schema.json",
-  "version": 1,
-  "name": "applications",
-  "dependencies": {},
   "deployments": [
     {
-      "name": "desktop-files",
       "source": ".",
       "target": ".local/share/applications",
       "kind": "contents",
-      "install": "link",
-      "exclude": [
-        "apply.sh",
-        "check.sh",
-        "dotfiles.json",
-        "kde.json",
-        "validate.sh"
-      ]
+      "exclude": ["apply.sh", "dotfiles.json"]
     }
   ]
 }

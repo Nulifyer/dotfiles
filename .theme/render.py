@@ -22,8 +22,9 @@ VSCODE_EXTENSION_PATH = Path(
 OPENCODE_THEME_PATH = Path(
     "opencode/themes/nulifyer.json"
 )
+CONTRAST_BASELINE_PATH = THEME_ROOT / "contrast-baseline.json"
 VSCODE_RENDER = runpy.run_path(
-    str(THEME_ROOT.parent / "vscode/theme/render.py")
+    str(THEME_ROOT.parent / "vscode/theme.py")
 )["render"]
 
 SEMANTIC_ROLE_DEFAULTS = {
@@ -61,6 +62,35 @@ SEMANTIC_ROLE_DEFAULTS = {
     "gitRenamed": "info",
     "gitSubmodule": "cyan",
 }
+
+CONTRAST_CHECKS = (
+    ("text.primary", "textPrimary", "uiBackground", 4.5),
+    ("text.muted", "textMuted", "uiBackground", 3.0),
+    (
+        "selection.foreground",
+        "selectionForeground",
+        "selectionBackground",
+        4.5,
+    ),
+    ("accent.nonText", "accent", "uiBackground", 3.0),
+    ("status.error", "error", "uiBackground", 3.0),
+    ("status.warning", "warning", "uiBackground", 3.0),
+    ("status.success", "success", "uiBackground", 3.0),
+    ("status.info", "info", "uiBackground", 3.0),
+)
+
+RAINBOW_SCOPES = (
+    "rainbow1",
+    "keyword.rainbow2",
+    "entity.name.function.rainbow3",
+    "comment.rainbow4",
+    "string.rainbow5",
+    "variable.parameter.rainbow6",
+    "constant.numeric.rainbow7",
+    "entity.name.type.rainbow8",
+    "markup.bold.rainbow9",
+    "invalid.rainbow10",
+)
 
 
 def atomic_write(path: Path, content: str, mode: int = 0o644) -> None:
@@ -371,6 +401,66 @@ def render_opencode(context: dict[str, str]) -> str:
         },
         indent=2,
     ) + "\n"
+
+
+def validate_catalog(catalog: dict[str, Any]) -> None:
+    baseline = load_json(CONTRAST_BASELINE_PATH)
+    if baseline.get("version") != 1:
+        raise ValueError("unsupported contrast baseline version")
+    expected = {
+        theme: set(names)
+        for theme, names in baseline.get("known_failures", {}).items()
+    }
+    actual: dict[str, set[str]] = {}
+
+    for key, theme in catalog.items():
+        validate_theme(key, theme)
+        context = scheme_context(theme)
+        render_fish(key, theme, context)
+        render_shell(key, theme, context)
+        render_kitty(key, theme, context)
+        render_alacritty(key, theme)
+        render_kde(key, theme, context)
+        package_text, theme_text = render_vscode(key, theme, context)
+        render_opencode(context)
+
+        package = json.loads(package_text)
+        vscode_theme = json.loads(theme_text)
+        background = vscode_theme["colors"]["editor.background"]
+        token_colors = {
+            entry["scope"]: entry["settings"]["foreground"]
+            for entry in vscode_theme["tokenColors"]
+        }
+        for scope in RAINBOW_SCOPES:
+            foreground = token_colors.get(scope)
+            if foreground is None:
+                raise ValueError(f"{key}: missing Rainbow CSV scope {scope}")
+            if contrast_ratio(foreground, background) < 4.5:
+                raise ValueError(f"{key}: low-contrast Rainbow CSV scope {scope}")
+
+        graph_colors = package["contributes"]["configurationDefaults"][
+            "git-graph.graph.colours"
+        ]
+        if len(graph_colors) != 12:
+            raise ValueError(f"{key}: Git Graph requires 12 colors")
+        if any(
+            contrast_ratio(color, background) < 3.0 for color in graph_colors
+        ):
+            raise ValueError(f"{key}: low-contrast Git Graph color")
+
+        for name, foreground, background_role, minimum in CONTRAST_CHECKS:
+            ratio = contrast_ratio(context[foreground], context[background_role])
+            if ratio < minimum:
+                actual.setdefault(key, set()).add(name)
+
+    failures: list[str] = []
+    for key in sorted(set(actual) | set(expected)):
+        for name in sorted(actual.get(key, set()) - expected.get(key, set())):
+            failures.append(f"new contrast failure: {key} {name}")
+        for name in sorted(expected.get(key, set()) - actual.get(key, set())):
+            failures.append(f"remove resolved contrast baseline: {key} {name}")
+    if failures:
+        raise ValueError("; ".join(failures))
 
 
 def render_fish(
@@ -788,33 +878,21 @@ def validate_theme(key: str, theme: dict[str, Any]) -> None:
 def main() -> int:
     if sys.argv[1:] == ["--validate"]:
         catalog = load_json(CATALOG_PATH)
-        for key, theme in catalog.items():
-            validate_theme(key, theme)
-            context = scheme_context(theme)
-            render_fish(key, theme, context)
-            render_shell(key, theme, context)
-            render_kitty(key, theme, context)
-            render_alacritty(key, theme)
-            render_kde(key, theme, context)
-            render_vscode(key, theme, context)
-            render_opencode(context)
+        validate_catalog(catalog)
         return 0
 
-    check_only = len(sys.argv) == 4 and sys.argv[1] == "--check"
-    if (check_only and len(sys.argv) != 4) or (
-        not check_only and len(sys.argv) != 3
-    ):
+    if len(sys.argv) != 3:
         print(
             "Usage: render.py --validate\n"
-            "       render.py [--check] OUTPUT_ROOT THEME_NAME",
+            "       render.py OUTPUT_ROOT THEME_NAME",
             file=sys.stderr,
         )
         return 2
 
-    argument_offset = 2 if check_only else 1
-    output_root = Path(sys.argv[argument_offset]).expanduser().resolve()
+    output_root = Path(sys.argv[1]).expanduser().resolve()
     catalog = load_json(CATALOG_PATH)
-    key = sys.argv[argument_offset + 1]
+    validate_catalog(catalog)
+    key = sys.argv[2]
     if key not in catalog:
         print(f"theme: unknown theme: {key}", file=sys.stderr)
         return 2
@@ -865,29 +943,6 @@ def main() -> int:
     obsolete_kde_paths = set(kde_root.glob("Nulifyer*.colors")) - (
         expected_kde_paths
     )
-
-    if check_only:
-        stale = False
-        for path, expected in outputs.items():
-            try:
-                actual = path.read_text(encoding="utf-8")
-            except OSError:
-                actual = None
-            if actual != expected:
-                print(
-                    f"theme: generated file is stale: "
-                    f"{path.relative_to(output_root)}",
-                    file=sys.stderr,
-                )
-                stale = True
-        for path in sorted(obsolete_kde_paths):
-            print(
-                f"theme: obsolete generated file: "
-                f"{path.relative_to(output_root)}",
-                file=sys.stderr,
-            )
-            stale = True
-        return int(stale)
 
     for path in obsolete_kde_paths:
         path.unlink()

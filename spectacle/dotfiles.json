@@ -1,28 +1,7 @@
 {
-  "$schema": "../.dotfiles/module.schema.json",
-  "version": 1,
-  "name": "spectacle",
-  "dependencies": {
-    "commands": {
-      "managed": [
-        "spectacle"
-      ]
-    },
-    "packages": {
-      "arch": {
-        "managed": [
-          "spectacle"
-        ]
-      }
-    }
-  },
+  "commands": { "managed": ["spectacle"] },
+  "packages": { "managed": ["spectacle"] },
   "deployments": [
-    {
-      "name": "config",
-      "source": "spectaclerc",
-      "target": ".config/spectaclerc",
-      "kind": "file",
-      "install": "link"
-    }
+    { "source": "spectaclerc", "target": ".config/spectaclerc" }
   ]
 }

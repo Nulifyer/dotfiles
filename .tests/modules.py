@@ -24,10 +24,7 @@ SPEC.loader.exec_module(modules)
 def write_manifest(root: Path, name: str, data: dict[str, object]) -> Path:
     directory = root / name
     directory.mkdir()
-    manifest = {"version": 1, "name": name, **data}
-    (directory / "dotfiles.json").write_text(
-        json.dumps(manifest), encoding="utf-8"
-    )
+    (directory / "dotfiles.json").write_text(json.dumps(data), encoding="utf-8")
     return directory
 
 
@@ -66,11 +63,9 @@ def test_conditions_and_exclusions() -> None:
             {
                 "deployments": [
                     {
-                        "name": "files",
                         "source": ".",
                         "target": ".config/app",
                         "kind": "contents",
-                        "install": "link",
                         "exclude": ["dotfiles.json"],
                     }
                 ]
@@ -81,13 +76,11 @@ def test_conditions_and_exclusions() -> None:
             root,
             "kde",
             {
-                "when": {"desktop": ["kde"]},
+                "desktop": "kde",
                 "deployments": [
                     {
-                        "name": "theme",
                         "source": "theme.colors",
                         "target": ".local/share/color-schemes/theme.colors",
-                        "kind": "file",
                         "install": "copy",
                     }
                 ],
@@ -123,11 +116,8 @@ def test_rejects_collisions_and_unsafe_paths() -> None:
             {
                 "deployments": [
                     {
-                        "name": "config",
                         "source": "one",
                         "target": ".config/shared",
-                        "kind": "file",
-                        "install": "link",
                     }
                 ]
             },
@@ -138,11 +128,8 @@ def test_rejects_collisions_and_unsafe_paths() -> None:
             {
                 "deployments": [
                     {
-                        "name": "config",
                         "source": "two",
                         "target": ".config/shared",
-                        "kind": "file",
-                        "install": "link",
                     }
                 ]
             },
@@ -159,11 +146,8 @@ def test_rejects_collisions_and_unsafe_paths() -> None:
             {
                 "deployments": [
                     {
-                        "name": "config",
                         "source": "../outside",
                         "target": ".config/unsafe",
-                        "kind": "file",
-                        "install": "link",
                     }
                 ]
             },

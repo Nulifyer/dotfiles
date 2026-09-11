@@ -1,44 +1,8 @@
 {
-  "$schema": "../.dotfiles/module.schema.json",
-  "version": 1,
-  "name": "zsh",
-  "dependencies": {
-    "commands": {
-      "managed": [
-        "zsh"
-      ],
-      "optional": [
-        "bat",
-        "eza"
-      ]
-    },
-    "packages": {
-      "arch": {
-        "managed": [
-          "zsh"
-        ],
-        "optional": [
-          "bat",
-          "eza"
-        ]
-      }
-    }
-  },
+  "commands": { "managed": ["zsh"], "optional": ["bat", "eza"] },
+  "packages": { "managed": ["zsh"], "optional": ["bat", "eza"] },
   "deployments": [
-    {
-      "name": "rc",
-      "source": "zshrc",
-      "target": ".zshrc",
-      "kind": "file",
-      "install": "link"
-    },
-    {
-      "name": "theme",
-      "source": "theme.generated.zsh",
-      "target": ".config/zsh/theme.generated.zsh",
-      "kind": "file",
-      "install": "link",
-      "generated": true
-    }
+    { "source": "zshrc", "target": ".zshrc" },
+    { "source": "theme.generated.zsh", "target": ".config/zsh/theme.generated.zsh" }
   ]
 }

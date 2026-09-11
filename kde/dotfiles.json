@@ -1,49 +1,15 @@
 {
-  "$schema": "../.dotfiles/module.schema.json",
-  "version": 1,
-  "name": "kde",
-  "when": {
-    "desktop": [
-      "kde"
-    ]
+  "desktop": "kde",
+  "commands": {
+    "managed": ["gdbus", "kbuildsycoca6", "kreadconfig6", "kwriteconfig6", "plasma-apply-colorscheme"]
   },
-  "dependencies": {
-    "commands": {
-      "managed": [
-        "kbuildsycoca6",
-        "gdbus",
-        "kreadconfig6",
-        "kwriteconfig6",
-        "plasma-apply-colorscheme"
-      ]
-    },
-    "packages": {
-      "arch": {
-        "managed": [
-          "kconfig",
-          "glib2",
-          "plasma-workspace",
-          "ttf-cascadia-mono-nerd"
-        ]
-      }
-    }
-  },
+  "packages": { "managed": ["glib2", "kconfig", "plasma-workspace"] },
   "deployments": [
     {
-      "name": "color-schemes",
       "source": ".",
       "target": ".local/share/color-schemes",
       "kind": "contents",
-      "install": "link",
-      "generated": true,
-      "exclude": [
-        "apply.sh",
-        "apply_scheme.py",
-        "check.sh",
-        "dotfiles.json",
-        "reload.sh",
-        "settings.json"
-      ]
+      "exclude": ["apply.sh", "dotfiles.json", "reload.sh"]
     }
   ]
 }

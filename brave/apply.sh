@@ -4,7 +4,8 @@ set -euo pipefail
 source "$DOTFILES_ROOT/.dotfiles/lib.sh"
 
 if dotfiles_is_kde; then
-    dotfiles_kconfig apply "$DOTFILES_ROOT/brave/kde.json"
+    dotfiles_kconfig_set \
+        kdeglobals General BrowserApplication brave-browser.desktop
 fi
 
 preferences="$DOTFILES_TARGET/.config/BraveSoftware/Brave-Browser/Default/Preferences"

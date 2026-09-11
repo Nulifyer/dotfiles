@@ -15,27 +15,22 @@ from typing import Any, Iterable
 
 
 MANIFEST_NAME = "dotfiles.json"
-MANIFEST_KEYS = {"$schema", "version", "name", "when", "dependencies", "deployments"}
-WHEN_KEYS = {"desktop"}
-DEPENDENCY_KEYS = {"commands", "packages"}
+MANIFEST_KEYS = {"desktop", "commands", "packages", "deployments"}
 DEPENDENCY_CLASSES = {"required", "managed", "optional"}
-PACKAGE_PLATFORMS = {"arch"}
 DEPENDENCY_NAME = re.compile(r"^[a-zA-Z0-9@._+-]+$")
-HOOKS = {"apply", "check", "reload", "clean", "validate"}
+HOOKS = ("apply", "reload")
 DEPLOYMENT_KEYS = {
-    "name",
     "source",
     "target",
     "kind",
     "install",
     "preserve",
     "exclude",
-    "generated",
 }
 KINDS = {"file", "contents", "directory"}
 INSTALL_METHODS = {"link", "copy"}
 CORE_COMMANDS = {
-    "required": ("bash", "git", "jq", "python3", "sha256sum"),
+    "required": ("bash", "git", "jq", "python3"),
 }
 CORE_PACKAGES = {
     "arch": {
@@ -53,15 +48,15 @@ class Module:
     name: str
     directory: Path
     manifest: Path
-    when: dict[str, Any]
-    dependencies: dict[str, Any]
+    desktop: str | None
+    commands: dict[str, Any]
+    packages: dict[str, Any]
     deployments: tuple[dict[str, Any], ...]
 
 
 @dataclass(frozen=True)
 class Deployment:
     module: Module
-    name: str
     source: Path
     source_relative: Path
     target: Path
@@ -69,11 +64,11 @@ class Deployment:
     install: str
     preserve: tuple[Path, ...]
     exclude: tuple[str, ...]
-    generated: bool
 
     @property
     def identifier(self) -> str:
-        return f"{self.module.name}/{self.name}"
+        local_source = self.source_relative.relative_to(self.module.name)
+        return f"{self.module.name}/{local_source}"
 
 
 def fail(message: str) -> ManifestError:
@@ -135,48 +130,25 @@ def discover(root: Path) -> tuple[Module, ...]:
             continue
         manifest = directory / MANIFEST_NAME
         if not manifest.is_file():
-            raise fail(f"visible application folder has no {MANIFEST_NAME}: {directory.name}")
+            raise fail(
+                f"visible application folder has no {MANIFEST_NAME}: "
+                f"{directory.name}"
+            )
         raw = load_json(manifest)
         if not isinstance(raw, dict):
             raise fail(f"manifest must contain an object: {manifest}")
         unknown = set(raw) - MANIFEST_KEYS
         if unknown:
             raise fail(f"unknown manifest keys in {manifest}: {sorted(unknown)}")
-        if raw.get("version") != 1:
-            raise fail(f"unsupported manifest version in {manifest}")
-        name = raw.get("name")
-        if name != directory.name:
-            raise fail(f"manifest name must match its folder: {manifest}")
-        when = raw.get("when", {})
-        if not isinstance(when, dict):
-            raise fail(f"when must be an object: {manifest}")
-        unknown_when = set(when) - WHEN_KEYS
-        if unknown_when:
-            raise fail(f"unknown conditions in {manifest}: {sorted(unknown_when)}")
-        desktops = string_list(when.get("desktop"), f"{name}.when.desktop")
-        if desktops and len({item.casefold() for item in desktops}) != len(desktops):
-            raise fail(f"duplicate desktop condition in {manifest}")
-        dependencies = raw.get("dependencies", {})
-        if not isinstance(dependencies, dict):
-            raise fail(f"dependencies must be an object: {manifest}")
-        unknown_dependencies = set(dependencies) - DEPENDENCY_KEYS
-        if unknown_dependencies:
-            raise fail(
-                f"unknown dependency groups in {manifest}: {sorted(unknown_dependencies)}"
-            )
-        if "commands" in dependencies:
-            validate_class_map(dependencies["commands"], f"{name}.dependencies.commands")
-        packages = dependencies.get("packages", {})
-        if not isinstance(packages, dict):
-            raise fail(f"{name}.dependencies.packages must be an object")
-        unknown_platforms = set(packages) - PACKAGE_PLATFORMS
-        if unknown_platforms:
-            raise fail(
-                f"unknown package platforms in {manifest}: {sorted(unknown_platforms)}"
-            )
-        for platform, class_map in packages.items():
-            validate_class_map(class_map, f"{name}.dependencies.packages.{platform}")
-        raw_deployments = raw.get("deployments")
+        name = directory.name
+        desktop = raw.get("desktop")
+        if desktop is not None and (not isinstance(desktop, str) or not desktop):
+            raise fail(f"desktop must be a non-empty string: {manifest}")
+        commands = raw.get("commands", {})
+        packages = raw.get("packages", {})
+        validate_class_map(commands, f"{name}.commands")
+        validate_class_map(packages, f"{name}.packages")
+        raw_deployments = raw.get("deployments", [])
         if not isinstance(raw_deployments, list):
             raise fail(f"deployments must be an array: {manifest}")
         modules.append(
@@ -184,8 +156,9 @@ def discover(root: Path) -> tuple[Module, ...]:
                 name=name,
                 directory=directory,
                 manifest=manifest,
-                when=when,
-                dependencies=dependencies,
+                desktop=desktop,
+                commands=commands,
+                packages=packages,
                 deployments=tuple(raw_deployments),
             )
         )
@@ -198,7 +171,6 @@ def parse_deployments(root: Path, modules: Iterable[Module]) -> tuple[Deployment
     deployments: list[Deployment] = []
     identifiers: set[str] = set()
     for module in modules:
-        local_names: set[str] = set()
         for raw in module.deployments:
             if not isinstance(raw, dict):
                 raise fail(f"deployment in {module.manifest} must be an object")
@@ -207,37 +179,29 @@ def parse_deployments(root: Path, modules: Iterable[Module]) -> tuple[Deployment
                 raise fail(
                     f"unknown deployment keys in {module.manifest}: {sorted(unknown)}"
                 )
-            name = raw.get("name")
-            if not isinstance(name, str) or not name:
-                raise fail(f"deployment name is missing in {module.manifest}")
-            if name in local_names:
-                raise fail(f"duplicate deployment name {module.name}/{name}")
-            local_names.add(name)
-            identifier = f"{module.name}/{name}"
+            source_local = safe_relative(
+                raw.get("source"), f"{module.name}.source", allow_dot=True
+            )
+            identifier = f"{module.name}/{source_local}"
             if identifier in identifiers:
                 raise fail(f"duplicate deployment identifier: {identifier}")
             identifiers.add(identifier)
-            source_local = safe_relative(
-                raw.get("source"), f"{identifier}.source", allow_dot=True
+            target = safe_relative(
+                raw.get("target"), f"{identifier}.target", allow_dot=True
             )
-            target = safe_relative(raw.get("target"), f"{identifier}.target", allow_dot=True)
             source = module.directory / source_local
-            kind = raw.get("kind")
-            install = raw.get("install")
+            kind = raw.get("kind", "file")
+            install = raw.get("install", "link")
             if kind not in KINDS:
                 raise fail(f"unknown source kind for {identifier}: {kind}")
             if install not in INSTALL_METHODS:
                 raise fail(f"unknown install method for {identifier}: {install}")
             if kind == "directory" and install == "copy":
                 raise fail(f"directory copies are not supported: {identifier}")
-            generated = raw.get("generated", False)
-            if not isinstance(generated, bool):
-                raise fail(f"generated must be boolean: {identifier}")
-            if not generated:
-                if kind == "file" and not (source.is_file() or source.is_symlink()):
-                    raise fail(f"deployment source is missing: {source}")
-                if kind != "file" and not source.is_dir():
-                    raise fail(f"deployment source is missing: {source}")
+            if kind == "file" and not (source.is_file() or source.is_symlink()):
+                raise fail(f"deployment source is missing: {source}")
+            if kind != "file" and not source.is_dir():
+                raise fail(f"deployment source is missing: {source}")
             preserve = tuple(
                 safe_relative(item, f"{identifier}.preserve")
                 for item in string_list(raw.get("preserve"), f"{identifier}.preserve")
@@ -246,7 +210,6 @@ def parse_deployments(root: Path, modules: Iterable[Module]) -> tuple[Deployment
             deployments.append(
                 Deployment(
                     module=module,
-                    name=name,
                     source=source,
                     source_relative=source.relative_to(root),
                     target=target,
@@ -254,7 +217,6 @@ def parse_deployments(root: Path, modules: Iterable[Module]) -> tuple[Deployment
                     install=install,
                     preserve=preserve,
                     exclude=exclude,
-                    generated=generated,
                 )
             )
     return tuple(deployments)
@@ -271,16 +233,14 @@ def selected_desktop() -> tuple[str, str]:
             return "kde", "XDG_CURRENT_DESKTOP"
         return values[0], "XDG_CURRENT_DESKTOP"
     return "unknown", "no desktop signal"
-
-
 def module_status(module: Module) -> tuple[bool, str]:
-    desktops = tuple(item.casefold() for item in module.when.get("desktop", ()))
-    if not desktops:
+    if module.desktop is None:
         return True, "no conditions"
     desktop, source = selected_desktop()
-    if desktop in desktops:
+    required = module.desktop.casefold()
+    if desktop == required:
         return True, f"desktop={desktop} from {source}"
-    return False, f"requires desktop={','.join(desktops)}; detected {desktop} from {source}"
+    return False, f"requires desktop={required}; detected {desktop} from {source}"
 
 
 def source_files(deployment: Deployment) -> tuple[Path, ...]:
@@ -289,9 +249,7 @@ def source_files(deployment: Deployment) -> tuple[Path, ...]:
     if deployment.kind == "directory":
         return ()
     if not deployment.source.is_dir():
-        if deployment.generated:
-            return ()
-        raise fail(f"deployment source is missing: {deployment.source}")
+        return ()
     files: list[Path] = []
     for path in deployment.source.rglob("*"):
         if not (path.is_file() or path.is_symlink()):
@@ -345,69 +303,53 @@ def validate(root: Path) -> tuple[Module, ...]:
     return modules
 
 
-def find_deployment(root: Path, identifier: str) -> Deployment:
-    modules = validate(root)
-    for deployment in parse_deployments(root, modules):
-        if deployment.identifier == identifier:
-            return deployment
-    raise fail(f"unknown deployment: {identifier}")
-
-
-def command_rows(root: Path, include_inactive: bool) -> None:
-    modules = validate(root)
-    for deployment in parse_deployments(root, modules):
-        active, _ = module_status(deployment.module)
-        if not active and not include_inactive:
-            continue
-        print(
-            "\t".join(
-                (
-                    deployment.identifier,
-                    deployment.source_relative.as_posix(),
-                    deployment.target.as_posix(),
-                    deployment.kind,
-                    deployment.install,
-                    deployment.module.name,
-                )
-            )
-        )
-
-
-def command_files(root: Path, identifier: str) -> None:
-    deployment = find_deployment(root, identifier)
-    for path in source_files(deployment):
-        sys.stdout.buffer.write(str(path.relative_to(root)).encode() + b"\0")
-
-
-def command_preserve(root: Path, identifier: str) -> None:
-    deployment = find_deployment(root, identifier)
-    for path in deployment.preserve:
-        print(path.as_posix())
-
-
 def command_modules(root: Path) -> None:
-    for module in validate(root):
+    for module in discover(root):
         active, reason = module_status(module)
         print(f"{module.name}\t{'enabled' if active else 'skipped'}\t{reason}")
 
 
-def command_manifests(root: Path) -> None:
-    for module in validate(root):
-        print(module.manifest)
+def plan_field(value: object) -> str:
+    text = str(value)
+    if "\0" in text or "\n" in text or "\t" in text:
+        raise fail(f"unsupported control character in deployment plan: {text!r}")
+    return text
 
 
-def command_hooks(root: Path, action: str, include_inactive: bool) -> None:
-    for module in validate(root):
+def plan_record(*fields: object) -> None:
+    record = "\t".join(plan_field(field) for field in fields)
+    sys.stdout.buffer.write(record.encode() + b"\0")
+
+
+def command_plan(root: Path) -> None:
+    modules = validate(root)
+    deployments = parse_deployments(root, modules)
+    for deployment in deployments:
+        active, _ = module_status(deployment.module)
+        plan_record(
+            "deployment",
+            int(active),
+            deployment.identifier,
+            deployment.source_relative.as_posix(),
+            deployment.target.as_posix(),
+            deployment.kind,
+            deployment.install,
+            deployment.module.name,
+        )
+        for path in source_files(deployment):
+            plan_record("file", deployment.identifier, path.relative_to(root))
+        for path in deployment.preserve:
+            plan_record("preserve", deployment.identifier, path)
+    for module in modules:
         active, _ = module_status(module)
-        if not active and not include_inactive:
-            continue
-        path = module.directory / f"{action}.sh"
-        if path.is_file():
-            print(f"{module.name}\t{path}")
+        for action in HOOKS:
+            path = module.directory / f"{action}.sh"
+            if path.is_file():
+                plan_record("hook", int(active), action, module.name, path)
 
 
 def dependency_rows(root: Path, dependency_type: str, platform: str | None) -> None:
-    modules = validate(root)
+    modules = discover(root)
     priorities = {"optional": 0, "managed": 1, "required": 2}
     collected: dict[str, tuple[str, set[str]]] = {}
 
@@ -436,9 +378,9 @@ def dependency_rows(root: Path, dependency_type: str, platform: str | None) -> N
         if not active:
             continue
         if dependency_type == "commands":
-            class_map = module.dependencies.get("commands", {})
+            class_map = module.commands
         else:
-            class_map = module.dependencies.get("packages", {}).get(platform, {})
+            class_map = module.packages
         for dependency_class, names in class_map.items():
             for name in names:
                 add(dependency_class, name, module.name)
@@ -452,42 +394,22 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
     subparsers = parser.add_subparsers(dest="command", required=True)
-    subparsers.add_parser("validate")
-    rows = subparsers.add_parser("rows")
-    rows.add_argument("--all", action="store_true")
-    files = subparsers.add_parser("files")
-    files.add_argument("identifier")
-    preserve = subparsers.add_parser("preserve")
-    preserve.add_argument("identifier")
     subparsers.add_parser("modules")
-    subparsers.add_parser("manifests")
+    subparsers.add_parser("plan")
     dependencies = subparsers.add_parser("dependencies")
     dependencies.add_argument("type", choices=("commands", "packages"))
-    dependencies.add_argument("--platform", choices=tuple(sorted(PACKAGE_PLATFORMS)))
-    hooks = subparsers.add_parser("hooks")
-    hooks.add_argument("action", choices=tuple(sorted(HOOKS)))
-    hooks.add_argument("--all", action="store_true")
+    dependencies.add_argument("--platform", choices=("arch",))
     arguments = parser.parse_args()
     root = arguments.root.expanduser().resolve()
     try:
-        if arguments.command == "validate":
-            validate(root)
-        elif arguments.command == "rows":
-            command_rows(root, arguments.all)
-        elif arguments.command == "files":
-            command_files(root, arguments.identifier)
-        elif arguments.command == "preserve":
-            command_preserve(root, arguments.identifier)
-        elif arguments.command == "modules":
+        if arguments.command == "modules":
             command_modules(root)
-        elif arguments.command == "manifests":
-            command_manifests(root)
+        elif arguments.command == "plan":
+            command_plan(root)
         elif arguments.command == "dependencies":
             if arguments.type == "packages" and arguments.platform is None:
                 raise fail("package dependency listing requires --platform")
             dependency_rows(root, arguments.type, arguments.platform)
-        elif arguments.command == "hooks":
-            command_hooks(root, arguments.action, arguments.all)
     except ManifestError as error:
         print(error, file=sys.stderr)
         return 1

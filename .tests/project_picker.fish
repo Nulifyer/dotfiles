@@ -45,6 +45,13 @@ or fail "$fixture" 'could not create duplicate project symlink'
 set -gx HOME "$fixture_home"
 set -gx Z_PROJECTS_ROOT "$fixture_home/Projects"
 set -l test_directory (path dirname (status filename))
+set -l scanner_dir "$fixture_home/.local/libexec/nulifyer"
+command mkdir -p "$scanner_dir"
+or fail "$fixture" 'could not create scanner directory'
+command cc -O2 -std=c17 -Wall -Wextra \
+    "$test_directory/../fish/tools/project_candidates.c" \
+    -o "$scanner_dir/project_candidates"
+or fail "$fixture" 'could not compile project scanner'
 source (path normalize "$test_directory/../fish/conf.d/projects.fish")
 
 set -l projects (__z_project_paths | string split0)

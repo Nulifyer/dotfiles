@@ -18,9 +18,19 @@ trap cleanup EXIT
 
 export DOTFILES_DESKTOP=kde
 export DOTFILES_TARGET="$test_root"
-"$REPOSITORY_ROOT/dotfiles" link
 "$REPOSITORY_ROOT/dotfiles" apply
-"$REPOSITORY_ROOT/dotfiles" check
+
+obsolete="$test_root/.config/kitty/obsolete.conf"
+ln -s "$REPOSITORY_ROOT/README.md" "$obsolete"
+nested_obsolete="$test_root/.vscode/extensions/nulifyer.nulifyer-theme-1.2.0/themes/obsolete.json"
+ln -s "$REPOSITORY_ROOT/README.md" "$nested_obsolete"
+"$REPOSITORY_ROOT/dotfiles" apply
+if [[ -e "$obsolete" || -L "$obsolete" ||
+    -e "$nested_obsolete" || -L "$nested_obsolete" ]]; then
+    printf 'dotfiles: apply did not remove an obsolete managed link\n' >&2
+    exit 1
+fi
+
 "$REPOSITORY_ROOT/dotfiles" unlink
 
 if find "$test_root" -type l -print -quit | grep -q .; then
@@ -28,4 +38,4 @@ if find "$test_root" -type l -print -quit | grep -q .; then
     exit 1
 fi
 
-printf 'Isolated setup round-trip passed.\n'
+printf 'Isolated apply and unlink round-trip passed.\n'

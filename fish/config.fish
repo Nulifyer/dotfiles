@@ -144,5 +144,9 @@ alias apt='man pacman'
 alias apt-get='man pacman'
 alias tb='nc termbin.com 9999'
 
-# Pi
-fish_add_path "/home/nulifyer/.local/share/pi-node/node-v22.23.2-linux-x64/bin"
+# Pi installs its bundled Node release below this directory. Discover it so the
+# config does not encode a user name, Node version, or CPU architecture.
+for pi_node_bin in "$HOME"/.local/share/pi-node/node-*/bin
+    test -d "$pi_node_bin"; and fish_add_path "$pi_node_bin"
+end
+set -e pi_node_bin

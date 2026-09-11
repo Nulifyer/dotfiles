@@ -14,7 +14,7 @@
 # To use Zed: set -Ux Z_PROJECT_EDITOR zed
 
 set -g __z_project_scanner_path \
-    (path normalize (status dirname)/../tools/project_candidates.py)
+    "$HOME/.local/libexec/nulifyer/project_candidates"
 
 function __z_projects_root
     if set -q Z_PROJECTS_ROOT; and test -n "$Z_PROJECTS_ROOT"
@@ -101,7 +101,7 @@ function __z_discover_project_paths
         end
     end
 
-    command python3 "$__z_project_scanner_path" "$HOME" "$projects_root"
+    command "$__z_project_scanner_path" "$HOME" "$projects_root"
 end
 
 function __z_project_paths
@@ -199,13 +199,10 @@ function zpick --description 'Search registered projects with fzf'
         printf 'zpick: fzf is required\n' >&2
         return 1
     end
-    if not command -q python3
-        printf 'zpick: python3 is required\n' >&2
-        return 1
-    end
-    if not test -r "$__z_project_scanner_path"
+    if not test -x "$__z_project_scanner_path"
         printf 'zpick: project scanner not found: %s\n' \
             "$__z_project_scanner_path" >&2
+        printf 'Run `./dotfiles apply` to build it.\n' >&2
         return 1
     end
 

@@ -183,9 +183,7 @@
       "rm -fr /": "deny",
       "rm -fr -- /": "deny",
       "rm -rf ~": "deny",
-      "rm -rf /home/nulifyer": "deny",
-      "rm -fr ~": "deny",
-      "rm -fr /home/nulifyer": "deny"
+      "rm -fr ~": "deny"
     }
   }
 }

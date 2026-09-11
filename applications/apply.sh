@@ -4,7 +4,22 @@ set -euo pipefail
 source "$DOTFILES_ROOT/.dotfiles/lib.sh"
 dotfiles_is_kde || exit 0
 
-dotfiles_kconfig apply "$DOTFILES_ROOT/applications/kde.json"
+rule=nulifyer-project-picker
+dotfiles_kconfig_set kwinrulesrc "$rule" Description "Centered project picker"
+dotfiles_kconfig_set kwinrulesrc "$rule" Enabled true
+dotfiles_kconfig_set kwinrulesrc "$rule" placement 5
+dotfiles_kconfig_set kwinrulesrc "$rule" placementrule 2
+dotfiles_kconfig_set kwinrulesrc "$rule" types 1
+dotfiles_kconfig_set kwinrulesrc "$rule" wmclass nulifyer-project-picker
+dotfiles_kconfig_set kwinrulesrc "$rule" wmclasscomplete false
+dotfiles_kconfig_set kwinrulesrc "$rule" wmclassmatch 1
+dotfiles_kconfig_add kwinrulesrc General rules "$rule"
+
+shortcut_file="$DOTFILES_TARGET/.config/kglobalshortcutsrc"
+mkdir -p -- "$(dirname -- "$shortcut_file")"
+kwriteconfig6 --file "$shortcut_file" \
+    --group services --group nulifyer-project-picker.desktop \
+    --key _launch -- Ctrl+Alt+P
 
 breeze="$DOTFILES_TARGET/.config/breezerc"
 exception_group=''

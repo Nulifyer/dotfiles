@@ -14,17 +14,23 @@ readonly MODULE_RUNNER="$DOTFILES_ROOT/.dotfiles/modules.py"
 readonly THEME_CATALOG="$DOTFILES_ROOT/colors.json"
 readonly THEME_RENDERER="$DOTFILES_ROOT/.theme/render.py"
 readonly THEME_LOCAL_STATE="$DOTFILES_ROOT/.theme/local"
+declare -a ACTIVE_DEPLOYMENTS=()
+declare -a ALL_DEPLOYMENTS=()
+declare -a APPLY_HOOKS=()
+declare -a RELOAD_HOOKS=()
+declare -A DEPLOYMENT_FILES=()
+declare -A DEPLOYMENT_PRESERVES=()
+MODULE_PLAN_READY=false
+
 usage() {
     cat <<'EOF'
 Usage: ./dotfiles COMMAND
 
 Commands:
-  link         Deploy app-owned files by link or copy
-  apply        Apply settings that cannot safely be linked
-  theme        Generate local theme files from colors.json
-  check        Validate source files, generated files, and installed links
+  apply        Reconcile themes, files, app settings, cleanup, and reloads
+  theme        Select a theme, then apply the complete configuration
   doctor       Report required and optional setup dependencies
-  update       Pull with --ff-only, then link, apply, and validate
+  update       Pull with --ff-only, then apply the complete configuration
   status       Show repository and package status
   unlink       Remove unchanged deployed files
   help         Show this help
@@ -113,19 +119,32 @@ link_points_into_repository() {
 }
 
 deployment_rows() {
-    python3 "$MODULE_RUNNER" --root "$DOTFILES_ROOT" rows
+    local row
+    for row in "${ACTIVE_DEPLOYMENTS[@]}"; do
+        printf '%s\n' "$row"
+    done
 }
 
 all_deployment_rows() {
-    python3 "$MODULE_RUNNER" --root "$DOTFILES_ROOT" rows --all
+    local row
+    for row in "${ALL_DEPLOYMENTS[@]}"; do
+        printf '%s\n' "$row"
+    done
 }
 
 deployment_preserve_paths() {
-    python3 "$MODULE_RUNNER" --root "$DOTFILES_ROOT" preserve "$1"
+    local values=${DEPLOYMENT_PRESERVES[$1]-}
+    [[ -n "$values" ]] || return
+    printf '%s' "$values"
 }
 
 deployment_source_files() {
-    python3 "$MODULE_RUNNER" --root "$DOTFILES_ROOT" files "$1"
+    local values=${DEPLOYMENT_FILES[$1]-}
+    local path
+    [[ -n "$values" ]] || return
+    while IFS= read -r path; do
+        [[ -n "$path" ]] && printf '%s\0' "$path"
+    done <<<"$values"
 }
 
 deployment_target_root() {
@@ -138,23 +157,18 @@ deployment_target_root() {
 }
 
 validate_deployments() {
-    python3 "$MODULE_RUNNER" --root "$DOTFILES_ROOT" validate
+    prepare_module_plan
 }
 
 run_module_hooks() {
     local action=$1
-    local include_inactive=${2:-false}
-    local -a arguments=(
-        "$MODULE_RUNNER" --root "$DOTFILES_ROOT" hooks "$action"
-    )
-    if [[ "$include_inactive" == true ]]; then
-        arguments+=(--all)
-    fi
-
-    local module hook
+    local -a hooks=()
+    [[ "$action" == apply ]] && hooks=("${APPLY_HOOKS[@]}")
+    [[ "$action" == reload ]] && hooks=("${RELOAD_HOOKS[@]}")
+    local row module hook
     local failed=false
-    while IFS=$'\t' read -r module hook; do
-        printf '%s %s settings...\n' "${action^}" "$module"
+    for row in "${hooks[@]}"; do
+        IFS=$'\t' read -r module hook <<<"$row"
         if ! env \
             DOTFILES_ROOT="$DOTFILES_ROOT" \
             DOTFILES_TARGET="$DOTFILES_TARGET" \
@@ -162,8 +176,48 @@ run_module_hooks() {
             bash "$hook"; then
             failed=true
         fi
-    done < <(python3 "${arguments[@]}")
+    done
     [[ "$failed" == false ]]
+}
+
+prepare_module_plan() {
+    [[ "$MODULE_PLAN_READY" == false ]] || return
+    local record type active identifier source target kind install module
+    local action path row plan_file
+    plan_file="$(mktemp)"
+    if ! python3 "$MODULE_RUNNER" --root "$DOTFILES_ROOT" plan >"$plan_file"; then
+        unlink "$plan_file"
+        return 1
+    fi
+    while IFS= read -r -d '' record; do
+        IFS=$'\t' read -r type active identifier source target kind install module \
+            <<<"$record"
+        case "$type" in
+            deployment)
+                row="$identifier"$'\t'"$source"$'\t'"$target"$'\t'
+                row+="$kind"$'\t'"$install"$'\t'"$module"
+                ALL_DEPLOYMENTS+=("$row")
+                [[ "$active" == 1 ]] && ACTIVE_DEPLOYMENTS+=("$row")
+                ;;
+            file)
+                DEPLOYMENT_FILES["$active"]+="$identifier"$'\n'
+                ;;
+            preserve)
+                DEPLOYMENT_PRESERVES["$active"]+="$identifier"$'\n'
+                ;;
+            hook)
+                action=$identifier
+                module=$source
+                path=$target
+                [[ "$active" == 1 ]] || continue
+                row="$module"$'\t'"$path"
+                [[ "$action" == apply ]] && APPLY_HOOKS+=("$row")
+                [[ "$action" == reload ]] && RELOAD_HOOKS+=("$row")
+                ;;
+        esac
+    done <"$plan_file"
+    unlink "$plan_file"
+    MODULE_PLAN_READY=true
 }
 
 deployment_matches() {
@@ -422,12 +476,11 @@ deploy_directory() {
     ln -sr -- "$source" "$target"
 }
 
-link_packages() {
+deploy_packages() {
     require_command python3
-    require_generated_theme
     validate_deployments
     replace_link_conflicts
-    printf 'Deploying dotfiles into %s...\n' "$DOTFILES_TARGET"
+    printf 'Reconciling files in %s...\n' "$DOTFILES_TARGET"
 
     local name source target source_kind install_method module target_root
     while IFS=$'\t' read -r name source target source_kind install_method module; do
@@ -441,6 +494,63 @@ link_packages() {
             deploy_directory "$name" "$DOTFILES_ROOT/$source" "$target_root"
         fi
     done < <(deployment_rows)
+}
+
+cleanup_obsolete_links() {
+    local name source_root target source_kind install_method module
+    local target_root source relative installed_link destination
+    local -A expected_targets=()
+    local -A target_directories=()
+    local -A recursive_targets=()
+
+    while IFS=$'\t' read -r name source_root target source_kind install_method module; do
+        target_root="$(deployment_target_root "$target")"
+        if [[ "$source_kind" == directory || "$source_kind" == file ]]; then
+            expected_targets["$target_root"]=1
+            target_directories["$(dirname -- "$target_root")"]=1
+            continue
+        fi
+        while IFS= read -r -d '' source; do
+            source="$DOTFILES_ROOT/$source"
+            relative="${source#"$DOTFILES_ROOT/$source_root/"}"
+            expected_targets["$target_root/$relative"]=1
+            target_directories["$(dirname -- "$target_root/$relative")"]=1
+        done < <(deployment_source_files "$name")
+    done < <(deployment_rows)
+
+    while IFS=$'\t' read -r name source_root target source_kind install_method module; do
+        target_root="$(deployment_target_root "$target")"
+        if [[ "$source_kind" == file || "$source_kind" == directory ]]; then
+            target_directories["$(dirname -- "$target_root")"]=1
+        else
+            recursive_targets["$target_root"]=1
+        fi
+    done < <(all_deployment_rows)
+
+    remove_obsolete_links() {
+        while IFS= read -r -d '' installed_link; do
+            [[ -n "${expected_targets[$installed_link]:-}" ]] && continue
+            destination="$(readlink -- "$installed_link")"
+            if [[ "$destination" != /* ]]; then
+                destination="$(readlink -m -- \
+                    "$(dirname -- "$installed_link")/$destination")"
+            fi
+            if [[ "$destination" == "$DOTFILES_ROOT/"* ]]; then
+                printf 'Removing obsolete managed link %s\n' "$installed_link"
+                rm -f -- "$installed_link"
+            fi
+        done
+    }
+
+    for target_root in "${!recursive_targets[@]}"; do
+        [[ -d "$target_root" ]] || continue
+        find "$target_root" -type l -print0 | remove_obsolete_links
+    done
+    for target_root in "${!target_directories[@]}"; do
+        [[ -d "$target_root" ]] || continue
+        find "$target_root" -maxdepth 1 -type l -print0 | remove_obsolete_links
+    done
+    unset -f remove_obsolete_links
 }
 
 unlink_packages() {
@@ -486,19 +596,6 @@ theme_current() {
     fi
 }
 
-require_generated_theme() {
-    local current_file="$THEME_LOCAL_STATE/current"
-    if [[ ! -r "$current_file" ]]; then
-        printf 'dotfiles: local theme output is missing\n' >&2
-        printf 'Run `./dotfiles theme NAME` before linking or checking.\n' >&2
-        return 1
-    fi
-
-    local current
-    current="$(theme_current)"
-    "$THEME_RENDERER" --check "$DOTFILES_ROOT" "$current"
-}
-
 theme_list() {
     jq -r '
         to_entries[]
@@ -525,7 +622,7 @@ Usage: ./dotfiles theme [NAME|--list|--current|--reload]
 With no name, choose a theme interactively with fzf.
   --list     List available themes
   --current  Print the tracked selected theme
-  --reload   Regenerate the tracked selected theme
+  --reload   Reapply the selected theme and all managed configuration
 EOF
             return
             ;;
@@ -566,189 +663,20 @@ EOF
         return 2
     fi
 
-    "$THEME_RENDERER" "$DOTFILES_ROOT" "$requested"
-
-    local display
-    display="$(
-        jq -r --arg name "$requested" '.[$name].name' "$THEME_CATALOG"
-    )"
-    printf 'Generated local theme files for %s (%s).\n' \
-        "$display" "$requested"
-
-    local scheme_source
-    local scheme_target
-    local scheme
-    IFS= read -r scheme <"$THEME_LOCAL_STATE/kde-scheme"
-    scheme_source="$DOTFILES_ROOT/kde/$scheme.colors"
-    scheme_target="$HOME/.local/share/color-schemes/$scheme.colors"
-    if [[ "$DOTFILES_TARGET" == "$HOME" ]] &&
-        link_matches "$scheme_source" "$scheme_target"; then
-        apply_settings
-    else
-        printf 'Run `./dotfiles link` and `./dotfiles apply` to install it.\n'
-    fi
+    apply_all "$requested"
 }
 
-apply_settings() {
-    require_generated_theme
+apply_all() {
+    require_command jq
+    require_command python3
+    local theme=${1:-$(theme_current)}
+    "$THEME_RENDERER" "$DOTFILES_ROOT" "$theme"
+    deploy_packages
+    cleanup_obsolete_links
+    printf 'Applying app settings and reloads...\n'
     run_module_hooks apply
     run_module_hooks reload
-    printf 'Applied enabled application settings.\n'
-}
-
-check_json() {
-    require_command jq
-
-    local json_file
-    local -a json_files=()
-    mapfile -d '' -t json_files < <(
-        git -C "$DOTFILES_ROOT" ls-files -co -z --exclude-standard -- '*.json'
-    )
-    local index
-    for index in "${!json_files[@]}"; do
-        json_files[index]="$DOTFILES_ROOT/${json_files[index]}"
-    done
-    json_files+=(
-        "$DOTFILES_ROOT/vscode/extension/package.json"
-        "$DOTFILES_ROOT/vscode/extension/themes/nulifyer.json"
-        "$DOTFILES_ROOT/opencode/themes/nulifyer.json"
-    )
-
-    for json_file in "${json_files[@]}"; do
-        [[ -f "$json_file" ]] || continue
-        jq -e . "$json_file" >/dev/null
-    done
-    validate_deployments
-
-    jq -e '
-        length > 0 and
-        all(.[]; (.variant == "dark" or .variant == "light") and
-            (.prompt | keys | length) == 7 and
-            (.terminal.normal | keys | length) == 8 and
-            (.terminal.bright | keys | length) == 8)
-    ' "$THEME_CATALOG" >/dev/null
-    "$THEME_RENDERER" --validate
-}
-
-check_sources() {
-    bash -n "$DOTFILES_ROOT/dotfiles" "$DOTFILES_ROOT/.dotfiles/lib.sh"
-    python3 - \
-        "$MODULE_RUNNER" \
-        "$DOTFILES_ROOT/.dotfiles/kconfig.py" \
-        "$DOTFILES_ROOT/.theme/audit.py" \
-        "$THEME_RENDERER" \
-        "$DOTFILES_ROOT/.theme/check_kde.py" \
-        "$DOTFILES_ROOT/.theme/test_golden.py" \
-        "$DOTFILES_ROOT/kde/apply_scheme.py" <<'PY'
-import pathlib
-import sys
-
-for name in sys.argv[1:]:
-    path = pathlib.Path(name)
-    compile(path.read_text(), path.name, "exec")
-PY
-    python3 "$DOTFILES_ROOT/.tests/modules.py"
-    python3 "$DOTFILES_ROOT/.theme/audit.py"
-    python3 "$DOTFILES_ROOT/.theme/test_golden.py"
-    run_module_hooks validate true
-}
-
-check_dependencies() {
-    validate_deployments
-}
-
-check_deployment_layout() {
-    validate_deployments
-}
-
-check_generated_theme() {
-    require_generated_theme
-}
-
-check_links() {
-    local failed=false
-    local name source_root target source_kind install_method module
-    local target_root source relative installed
-    local -A expected_targets=()
-    local -A target_directories=()
-
-    while IFS=$'\t' read -r name source_root target source_kind install_method module; do
-        target_root="$(deployment_target_root "$target")"
-        if [[ "$source_kind" == directory ]]; then
-            expected_targets["$target_root"]=1
-            target_directories["$(dirname -- "$target_root")"]=1
-            if ! link_matches "$DOTFILES_ROOT/$source_root" "$target_root"; then
-                printf 'dotfiles: directory-link drift: %s -> %s\n' \
-                    "$target_root" "$DOTFILES_ROOT/$source_root" >&2
-                failed=true
-            fi
-            continue
-        elif [[ "$source_kind" == file ]]; then
-            expected_targets["$target_root"]=1
-            target_directories["$(dirname -- "$target_root")"]=1
-            if ! deployment_matches \
-                "$DOTFILES_ROOT/$source_root" "$target_root" "$install_method"; then
-                printf 'dotfiles: %s drift: %s (source %s)\n' \
-                    "$install_method" "$target_root" "$DOTFILES_ROOT/$source_root" >&2
-                failed=true
-            fi
-            continue
-        fi
-
-        while IFS= read -r -d '' source; do
-            source="$DOTFILES_ROOT/$source"
-            relative="${source#"$DOTFILES_ROOT/$source_root/"}"
-            installed="$target_root/$relative"
-            expected_targets["$installed"]=1
-            target_directories["$(dirname -- "$installed")"]=1
-            if ! deployment_matches "$source" "$installed" "$install_method"; then
-                printf 'dotfiles: %s drift: %s (source %s)\n' \
-                    "$install_method" "$installed" "$source" >&2
-                failed=true
-            fi
-        done < <(deployment_source_files "$name")
-    done < <(deployment_rows)
-
-    local directory installed_link
-    local raw_destination resolved_destination
-    for directory in "${!target_directories[@]}"; do
-        [[ -d "$directory" ]] || continue
-        while IFS= read -r -d '' installed_link; do
-            [[ -n "${expected_targets[$installed_link]:-}" ]] && continue
-            raw_destination="$(readlink -- "$installed_link")"
-            if [[ "$raw_destination" == /* ]]; then
-                resolved_destination="$(readlink -m -- "$raw_destination")"
-            else
-                resolved_destination="$(
-                    readlink -m -- "$directory/$raw_destination"
-                )"
-            fi
-            if [[ "$resolved_destination" == "$DOTFILES_ROOT/"* ]]; then
-                printf 'dotfiles: obsolete managed link: %s -> %s\n' \
-                    "$installed_link" "$raw_destination" >&2
-                failed=true
-            fi
-        done < <(find "$directory" -maxdepth 1 -type l -print0)
-    done
-
-    [[ "$failed" == false ]]
-}
-
-check_module_settings() {
-    run_module_hooks check
-}
-
-check_all() {
-    printf 'Validating dotfiles...\n'
-    git -C "$DOTFILES_ROOT" diff --check HEAD
-    check_generated_theme
-    check_json
-    check_sources
-    check_dependencies
-    check_deployment_layout
-    check_links
-    check_module_settings
-    printf 'All local checks passed.\n'
+    printf 'Dotfiles are applied.\n'
 }
 
 show_status() {
@@ -768,10 +696,7 @@ show_status() {
 
 update_all() {
     git -C "$DOTFILES_ROOT" pull --ff-only
-    theme_command --reload
-    link_packages
-    apply_settings
-    check_all
+    apply_all
 }
 
 main() {
@@ -785,17 +710,11 @@ main() {
     fi
 
     case "$command_name" in
-        link)
-            link_packages
-            ;;
         apply)
-            apply_settings
+            apply_all
             ;;
         theme)
             theme_command "${@:2}"
-            ;;
-        check)
-            check_all
             ;;
         doctor)
             doctor_command "${@:2}"
