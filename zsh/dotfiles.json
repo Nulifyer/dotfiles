@@ -1,6 +1,4 @@
 {
-  "commands": { "managed": ["zsh"], "optional": ["bat", "eza"] },
-  "packages": { "managed": ["zsh"], "optional": ["bat", "eza"] },
   "deployments": [
     { "source": "zshrc", "target": ".zshrc" },
     { "source": "theme.generated.zsh", "target": ".config/zsh/theme.generated.zsh" }

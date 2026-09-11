@@ -1,6 +1,6 @@
 # Shared generated theme and prompt.
 #
-# `./dotfiles theme NAME` updates the local generated file. Gruvbox values
+# `./dotfiles` updates the local generated file. Gruvbox values
 # below are startup fallbacks for an incomplete installation.
 
 set -g nulifyer_prompt_os 746A62

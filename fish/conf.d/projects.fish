@@ -202,7 +202,7 @@ function zpick --description 'Search registered projects with fzf'
     if not test -x "$__z_project_scanner_path"
         printf 'zpick: project scanner not found: %s\n' \
             "$__z_project_scanner_path" >&2
-        printf 'Run `./dotfiles apply` to build it.\n' >&2
+        printf 'Run `./dotfiles` to build it.\n' >&2
         return 1
     end
 

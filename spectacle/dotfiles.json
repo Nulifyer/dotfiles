@@ -1,6 +1,4 @@
 {
-  "commands": { "managed": ["spectacle"] },
-  "packages": { "managed": ["spectacle"] },
   "deployments": [
     { "source": "spectaclerc", "target": ".config/spectaclerc" }
   ]

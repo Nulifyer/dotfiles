@@ -1,9 +1,5 @@
 {
   "desktop": "kde",
-  "commands": {
-    "managed": ["gdbus", "kbuildsycoca6", "kreadconfig6", "kwriteconfig6", "plasma-apply-colorscheme"]
-  },
-  "packages": { "managed": ["glib2", "kconfig", "plasma-workspace"] },
   "deployments": [
     {
       "source": ".",

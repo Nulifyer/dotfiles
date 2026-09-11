@@ -1,6 +1,4 @@
 {
-  "commands": { "managed": ["opencode"] },
-  "packages": { "managed": ["opencode"] },
   "deployments": [
     {
       "source": ".",

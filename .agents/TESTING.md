@@ -22,14 +22,13 @@ git diff --check
 ## Full checks
 
 ```text
-./dotfiles doctor
 bash .tests/setup.sh
 ```
 
 ## Environment
 
 - Primary target: CachyOS or Arch, Plasma, KWin, and Wayland.
-- Baseline commands: Bash, Git, jq, Python 3, and a C compiler.
+- Baseline commands: Bash, Python 3, and a C compiler.
 - Apply hooks must tolerate an absent live desktop bus for temporary homes.
 
 ## Known gaps

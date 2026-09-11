@@ -1,6 +1,4 @@
 {
-  "commands": { "optional": ["bat", "eza"] },
-  "packages": { "optional": ["bat", "eza"] },
   "deployments": [
     { "source": "bash_profile", "target": ".bash_profile" },
     { "source": "bashrc", "target": ".bashrc" },

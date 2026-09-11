@@ -1,4 +1,1 @@
-{
-  "commands": { "managed": ["brave"] },
-  "packages": { "managed": ["brave-bin"] }
-}
+{}

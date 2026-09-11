@@ -5,8 +5,9 @@
 - Each top-level application folder owns its configuration, deployment
   declarations, theme mapping, app-specific desktop integration, and optional
   `apply.sh` or `reload.sh`.
-- Keep the root `dotfiles` command generic. `apply` is the single reconciliation
-  path for theme generation, deployment, cleanup, app settings, and reloads.
+- Keep the root `dotfiles` command generic. Running `./dotfiles` is the single
+  reconciliation path for theme generation, deployment, cleanup, app settings,
+  and reloads.
 - Declare deployed paths in the owner's `dotfiles.json`. A deployment defaults
   to a linked file; declare copies and directory deployments explicitly.
 - `.theme` owns shared color resolution and catalog validation. App-specific

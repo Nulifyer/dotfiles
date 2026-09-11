@@ -5,7 +5,7 @@
 | ID | Decision | Reason |
 | --- | --- | --- |
 | D001 | Each application folder owns its configuration, deployment, theme mapping, optional apply or reload hook, and app-specific desktop integration. | Ownership should be visible without a second central configuration. |
-| D002 | `apply` is the one reconciliation interface. It generates the theme, deploys files, removes obsolete owned links, applies app settings, and reloads supported apps. | Separate link, validate, check, and settings passes duplicated work and made routine use harder. |
+| D002 | Running `./dotfiles` is the only public command. It generates the theme, deploys files, removes obsolete owned links, applies app settings, and reloads supported apps. A launcher may choose a theme with `DOTFILES_THEME` and invoke the same command. | Separate subcommands duplicated work and made routine use harder. |
 | D003 | A manifest deployment defaults to a linked file. `kind` and `install` appear only for directory deployment or copies. | The common case should need only source and target. |
 | D004 | The root runner detects KDE and supports `DOTFILES_DESKTOP` for headless use and tests. | Desktop-specific work must be skipped outside its desktop. |
 | D005 | `kde/` owns only theme state. KDE settings tied to one app live in that app; generic KDE preferences are not tracked. | The repository must remain portable and app ownership must stay local. |
@@ -27,6 +27,8 @@
 
 ## Superseded decisions
 
+- Public `apply`, `theme`, `doctor`, `update`, `status`, and `unlink` subcommands.
+- Command and package dependency inventories in application manifests.
 - Per-app `validate.sh`, `check.sh`, and `clean.sh` lifecycle files.
 - Separate Gruvbox golden fixtures and JSON schema documents.
 - A pinned VS Code extension inventory for theme integration.

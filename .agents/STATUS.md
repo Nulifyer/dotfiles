@@ -4,7 +4,7 @@ State: active
 
 ## Project state
 
-The repository is being simplified around one idempotent `apply` path. App
+The repository is being simplified around one idempotent `./dotfiles` path. App
 folders still own deployment and app-specific settings, but redundant schema,
 golden, validation, check, and integration-inventory files are being removed.
 KDE owns theme activation only; generic Plasma preferences are no longer
@@ -12,22 +12,25 @@ tracked.
 
 ## Current batch
 
-The simplified apply path, flat VS Code theme ownership, and native project
-scanner are implemented and ready for delivery.
+The public interface is now one command: `./dotfiles`. The old command router
+and the dependency metadata used only by `doctor` have been removed.
 
 ## In progress
 
-- `apply` renders the selected theme, reconciles deployments, removes obsolete
-  repository links, applies app settings, and reloads supported apps.
-- Manifests omit repeated name, version, schema, file-kind, and link-method
-  fields.
+- `./dotfiles` renders the selected theme, reconciles deployments, removes
+  obsolete repository links, applies app settings, and reloads supported apps.
+- `DOTFILES_THEME=name ./dotfiles` is the narrow integration seam for the
+  future graphical theme picker.
+- Manifests contain only deployments and an optional desktop condition.
 - VS Code theme maps live directly under `vscode/`; Rainbow CSV and Git Graph
   remain part of the generated theme.
 - The project scanner is generated locally from portable C source.
 
 ## Next action
 
-Resume the palette provenance and non-Gruvbox light-theme contrast audit.
+Review Omarchy 4's current launcher/menu behavior, then define the smallest
+app launcher, project picker, and theme picker that fits this one-command apply
+interface.
 
 ## Blockers
 
@@ -35,9 +38,8 @@ Resume the palette provenance and non-Gruvbox light-theme contrast audit.
 
 ## Verification
 
-- The isolated test ran `apply` twice, removed flat and nested obsolete links,
-  then completed `unlink` without leaving managed links.
-- Theme validation rendered all catalog entries and checked the shared contrast
-  and VS Code integration rules.
-- The native scanner matched the previous scanner's output and passed the
-  project fixture.
+- The isolated setup test ran `./dotfiles` twice and removed flat and nested
+  obsolete repository links. It also rejected the retired `apply` subcommand.
+- Theme validation rendered the full catalog successfully.
+- Shell syntax, application manifest tests, project picker tests, and
+  `git diff --check` passed.

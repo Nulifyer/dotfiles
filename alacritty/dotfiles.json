@@ -1,6 +1,4 @@
 {
-  "commands": { "managed": ["alacritty"] },
-  "packages": { "managed": ["alacritty"] },
   "deployments": [
     { "source": "alacritty.toml", "target": ".config/alacritty/alacritty.toml" },
     { "source": "theme.generated.toml", "target": ".config/alacritty/theme.generated.toml" }

@@ -5,35 +5,32 @@ Portable application configuration for CachyOS and Plasma.
 ## Use it
 
 ```sh
-./dotfiles doctor
-./dotfiles theme gruvbox
-./dotfiles apply
+./dotfiles
 ```
 
-`apply` is the normal command. It generates the selected theme, reconciles
-links and copies, removes obsolete links that still point into this repository,
-applies app-owned settings, and reloads supported applications. Running it
-again is safe.
+That is the complete public interface. It generates the selected theme,
+reconciles links and copies, removes obsolete links that still point into this
+repository, applies app-owned settings, and reloads supported applications.
+Run it again after changing or pulling the repository; repeated runs converge
+on the same state.
 
-```text
-./dotfiles apply        Reconcile the complete configuration
-./dotfiles theme NAME   Select a theme, then apply everything
-./dotfiles doctor       Report missing commands and packages
-./dotfiles update       Pull with --ff-only, then apply everything
-./dotfiles status       Show enabled modules and Git state
-./dotfiles unlink       Remove unchanged managed files
+A graphical theme picker can select a theme through the same apply path without
+adding another command:
+
+```sh
+DOTFILES_THEME=gruvbox ./dotfiles
 ```
 
-If a target conflicts with a managed file, `apply` asks whether to keep the
+If a target conflicts with a managed file, the command asks whether to keep the
 repository version or import the target. It never replaces a directory with a
-file. `unlink` removes only matching links and unchanged copies.
+file. Cleanup removes only links whose destination proves repository ownership.
 
 ## Ownership
 
 Each top-level application folder owns its configuration, `dotfiles.json`,
 optional `apply.sh` and `reload.sh`, and any theme mapping. The manifest lists
-dependencies and deployments. A deployment defaults to a linked file, so the
-common case is only a source and target:
+deployments and an optional desktop condition. A deployment defaults to a
+linked file, so the common case is only a source and target:
 
 ```json
 {
@@ -59,13 +56,6 @@ Alacritty, KDE, VS Code, and OpenCode. Semantic roles describe text, surfaces,
 selection, borders, status, and Git colors. Each app decides how those roles map
 to its own properties.
 
-```sh
-./dotfiles theme             # interactive picker
-./dotfiles theme --list
-./dotfiles theme --current
-./dotfiles theme --reload
-```
-
 VS Code keeps its tracked theme maps directly in `vscode/`. Rainbow CSV scopes
 and tracking colors are part of `tokens.json` and `workbench.json`. Git Graph's
 branch colors are generated with the same palette. VS Code requires a local
@@ -82,9 +72,9 @@ Press `Ctrl+Alt+P` in Plasma or run `zpick` in Fish. Direct children of
 finds outermost directories containing `.git`, `.jj`, `.hg`, `.svn`, `.vscode`,
 `.idea`, or `.devcontainer` while skipping caches and build trees.
 
-The scanner is portable C source. `apply` compiles it for the current machine
-into `~/.local/libexec/nulifyer`; no compiled binary is committed. Press Enter
-to open the selected editor, `Ctrl+E` for a terminal, or Escape to close.
+The scanner is portable C source. `./dotfiles` compiles it for the current
+machine into `~/.local/libexec/nulifyer`; no compiled binary is committed. Press
+Enter to open the selected editor, `Ctrl+E` for a terminal, or Escape to close.
 
 ## What Git tracks
 

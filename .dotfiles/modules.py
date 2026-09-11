@@ -3,11 +3,9 @@
 
 from __future__ import annotations
 
-import argparse
 import fnmatch
 import json
 import os
-import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,9 +13,7 @@ from typing import Any, Iterable
 
 
 MANIFEST_NAME = "dotfiles.json"
-MANIFEST_KEYS = {"desktop", "commands", "packages", "deployments"}
-DEPENDENCY_CLASSES = {"required", "managed", "optional"}
-DEPENDENCY_NAME = re.compile(r"^[a-zA-Z0-9@._+-]+$")
+MANIFEST_KEYS = {"desktop", "deployments"}
 HOOKS = ("apply", "reload")
 DEPLOYMENT_KEYS = {
     "source",
@@ -29,14 +25,6 @@ DEPLOYMENT_KEYS = {
 }
 KINDS = {"file", "contents", "directory"}
 INSTALL_METHODS = {"link", "copy"}
-CORE_COMMANDS = {
-    "required": ("bash", "git", "jq", "python3"),
-}
-CORE_PACKAGES = {
-    "arch": {
-        "required": ("bash", "coreutils", "git", "jq", "python"),
-    }
-}
 
 
 class ManifestError(ValueError):
@@ -49,8 +37,6 @@ class Module:
     directory: Path
     manifest: Path
     desktop: str | None
-    commands: dict[str, Any]
-    packages: dict[str, Any]
     deployments: tuple[dict[str, Any], ...]
 
 
@@ -104,25 +90,6 @@ def string_list(value: Any, label: str) -> tuple[str, ...]:
     return tuple(value)
 
 
-def validate_class_map(value: Any, label: str) -> None:
-    if not isinstance(value, dict):
-        raise fail(f"{label} must be an object")
-    unknown = set(value) - DEPENDENCY_CLASSES
-    if unknown:
-        raise fail(f"unknown dependency classes in {label}: {sorted(unknown)}")
-    seen: set[str] = set()
-    for dependency_class, names in value.items():
-        values = string_list(names, f"{label}.{dependency_class}")
-        if len(set(values)) != len(values):
-            raise fail(f"duplicate dependencies in {label}.{dependency_class}")
-        for name in values:
-            if not DEPENDENCY_NAME.fullmatch(name):
-                raise fail(f"invalid dependency name in {label}: {name}")
-            if name in seen:
-                raise fail(f"dependency appears in multiple classes in {label}: {name}")
-            seen.add(name)
-
-
 def discover(root: Path) -> tuple[Module, ...]:
     modules: list[Module] = []
     for directory in sorted(path for path in root.iterdir() if path.is_dir()):
@@ -144,10 +111,6 @@ def discover(root: Path) -> tuple[Module, ...]:
         desktop = raw.get("desktop")
         if desktop is not None and (not isinstance(desktop, str) or not desktop):
             raise fail(f"desktop must be a non-empty string: {manifest}")
-        commands = raw.get("commands", {})
-        packages = raw.get("packages", {})
-        validate_class_map(commands, f"{name}.commands")
-        validate_class_map(packages, f"{name}.packages")
         raw_deployments = raw.get("deployments", [])
         if not isinstance(raw_deployments, list):
             raise fail(f"deployments must be an array: {manifest}")
@@ -157,8 +120,6 @@ def discover(root: Path) -> tuple[Module, ...]:
                 directory=directory,
                 manifest=manifest,
                 desktop=desktop,
-                commands=commands,
-                packages=packages,
                 deployments=tuple(raw_deployments),
             )
         )
@@ -233,6 +194,8 @@ def selected_desktop() -> tuple[str, str]:
             return "kde", "XDG_CURRENT_DESKTOP"
         return values[0], "XDG_CURRENT_DESKTOP"
     return "unknown", "no desktop signal"
+
+
 def module_status(module: Module) -> tuple[bool, str]:
     if module.desktop is None:
         return True, "no conditions"
@@ -303,12 +266,6 @@ def validate(root: Path) -> tuple[Module, ...]:
     return modules
 
 
-def command_modules(root: Path) -> None:
-    for module in discover(root):
-        active, reason = module_status(module)
-        print(f"{module.name}\t{'enabled' if active else 'skipped'}\t{reason}")
-
-
 def plan_field(value: object) -> str:
     text = str(value)
     if "\0" in text or "\n" in text or "\t" in text:
@@ -348,68 +305,13 @@ def command_plan(root: Path) -> None:
                 plan_record("hook", int(active), action, module.name, path)
 
 
-def dependency_rows(root: Path, dependency_type: str, platform: str | None) -> None:
-    modules = discover(root)
-    priorities = {"optional": 0, "managed": 1, "required": 2}
-    collected: dict[str, tuple[str, set[str]]] = {}
-
-    def add(dependency_class: str, name: str, owner: str) -> None:
-        if name in collected:
-            current_class, owners = collected[name]
-            if priorities[dependency_class] > priorities[current_class]:
-                current_class = dependency_class
-            owners.add(owner)
-            collected[name] = current_class, owners
-        else:
-            collected[name] = dependency_class, {owner}
-
-    if dependency_type == "commands":
-        for dependency_class, names in CORE_COMMANDS.items():
-            for name in names:
-                add(dependency_class, name, "runner")
-    else:
-        assert platform is not None
-        for dependency_class, names in CORE_PACKAGES.get(platform, {}).items():
-            for name in names:
-                add(dependency_class, name, "runner")
-
-    for module in modules:
-        active, _ = module_status(module)
-        if not active:
-            continue
-        if dependency_type == "commands":
-            class_map = module.commands
-        else:
-            class_map = module.packages
-        for dependency_class, names in class_map.items():
-            for name in names:
-                add(dependency_class, name, module.name)
-
-    for name in sorted(collected):
-        dependency_class, owners = collected[name]
-        print(f"{dependency_class}\t{name}\t{','.join(sorted(owners))}")
-
-
 def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--root", type=Path, required=True)
-    subparsers = parser.add_subparsers(dest="command", required=True)
-    subparsers.add_parser("modules")
-    subparsers.add_parser("plan")
-    dependencies = subparsers.add_parser("dependencies")
-    dependencies.add_argument("type", choices=("commands", "packages"))
-    dependencies.add_argument("--platform", choices=("arch",))
-    arguments = parser.parse_args()
-    root = arguments.root.expanduser().resolve()
+    if len(sys.argv) != 2:
+        print("Usage: modules.py ROOT", file=sys.stderr)
+        return 2
+    root = Path(sys.argv[1]).expanduser().resolve()
     try:
-        if arguments.command == "modules":
-            command_modules(root)
-        elif arguments.command == "plan":
-            command_plan(root)
-        elif arguments.command == "dependencies":
-            if arguments.type == "packages" and arguments.platform is None:
-                raise fail("package dependency listing requires --platform")
-            dependency_rows(root, arguments.type, arguments.platform)
+        command_plan(root)
     except ManifestError as error:
         print(error, file=sys.stderr)
         return 1

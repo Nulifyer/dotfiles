@@ -1,6 +1,4 @@
 {
-  "commands": { "managed": ["code"] },
-  "packages": { "managed": ["visual-studio-code-bin"] },
   "deployments": [
     { "source": "settings.json", "target": ".config/Code/User/settings.json" },
     {

@@ -14,8 +14,8 @@ machine-local state.
   `dotfiles.json` that explains where its files go and whether they are linked
   or copied.
 - [x] The root runner discovers modules, evaluates their conditions, detects
-  target collisions, and explains why each module is enabled or skipped.
-- [ ] `apply` idempotently reconciles generated themes, deployment, app
+  target collisions, and skips desktop-specific modules when inapplicable.
+- [x] `./dotfiles` idempotently reconciles generated themes, deployment, app
   settings, owned cleanup, and reloads.
 - [ ] All 40 themes pass one semantic validation path with documented upstream
   provenance. Gruvbox and Gruvbox Light keep their approved values.
@@ -29,15 +29,14 @@ machine-local state.
   projects without requiring KRunner.
 - [ ] Window zones support persistent layouts and zone spanning without
   changing the saved layout when one window is resized.
-- [ ] A clean-home or VM run proves `doctor`, `apply`, theme selection, and
-  removal.
+- [ ] A clean-home or VM run proves apply, theme selection, and owned cleanup.
 - [ ] Theme switching and verification leave tracked files clean.
 
 ## Scope
 
 ### In
 
-- App-owned manifests, deployment, dependencies, apply hooks, and reload hooks.
+- App-owned manifests, deployment, apply hooks, and reload hooks.
 - Semantic theme catalog, renderer adapters, provenance, contrast policy, and
   application-specific color policy.
 - Kitty, Alacritty, Fish, Bash, Zsh, KDE, VS Code, OpenCode, Brave, Spectacle,
@@ -79,10 +78,10 @@ machine-local state.
 
 - A top-level application folder is the ownership module. It contains its
   manifest, sources, optional apply or reload hook, and theme mapping.
-- The root `dotfiles` command exposes the small orchestration interface. It
+- Running the root `dotfiles` command performs the complete reconciliation. It
   discovers modules and runs generic deployment and lifecycle operations.
-- Each `dotfiles.json` declares dependencies and deployments. Linked files are
-  the default; desktop conditions, copies, and directory deployment are
+- Each `dotfiles.json` declares deployments and, when needed, a desktop
+  condition. Linked files are the default; copies and directory deployment are
   explicit only when needed.
 - Deployment keeps source kind and install method separate. Source kind is
   `file`, `contents`, or `directory`; install method is `link` or `copy`.

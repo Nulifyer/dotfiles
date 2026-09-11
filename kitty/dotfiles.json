@@ -1,6 +1,4 @@
 {
-  "commands": { "managed": ["kitty"] },
-  "packages": { "managed": ["kitty"] },
   "deployments": [
     { "source": "kitty.conf", "target": ".config/kitty/kitty.conf" },
     { "source": "theme.generated.conf", "target": ".config/kitty/theme.generated.conf" },
