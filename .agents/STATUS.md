@@ -12,9 +12,10 @@ tracked.
 
 ## Current batch
 
-The Omarchy 4 review and bounded launcher plan are complete. The chosen shape
-is one resident Quickshell launcher module for applications, projects, and
-themes while Plasma, KWin, and a KRunner fallback remain in place.
+The current Omarchy 4 and dwm-titus setups have been compared. Both validate a
+single resident Quickshell process over a separate window manager, but neither
+window manager matches the required fixed-zone workflow. The chosen first step
+is one Quickshell-owned launcher while KWin, Plasma Shell, and KRunner remain.
 
 ## In progress
 
@@ -29,10 +30,11 @@ themes while Plasma, KWin, and a KRunner fallback remain in place.
 
 ## Next action
 
-Implement the resident-window spike in `docs/launcher.md`: one Quickshell
-process, a regular top-level window, route IPC, focus, active-screen placement,
-and an app-owned KWin rule. Do not migrate the current project picker until the
-spike passes.
+Implement the resident-window spike in `docs/launcher.md`: create the
+`quickshell/` module with one process, a regular top-level launcher window,
+route IPC, focus, active-screen placement, and an app-owned KWin rule. Do not
+migrate the current project picker or disable Plasma Shell until the spike
+passes.
 
 ## Blockers
 

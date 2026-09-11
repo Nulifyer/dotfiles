@@ -4,7 +4,7 @@
 
 Build a maintainable CachyOS desktop configuration with one semantic color
 catalog, app-owned setup and lifecycle behavior, reproducible deployment, and a
-coherent Plasma UI. Theme selection, application launch, project launch, and
+coherent desktop UI. Theme selection, application launch, project launch, and
 window placement should be fast and visually consistent without committing
 machine-local state.
 
@@ -68,8 +68,9 @@ machine-local state.
 - KDE and application capabilities are detected before applying their state.
   An explicit profile override must support setup outside a live desktop
   session.
-- Keep Plasma and KWin as the desktop foundation. Quickshell may own a focused
-  launcher or theme picker, but it is not a required desktop replacement.
+- Keep KWin as the window manager and Plasma Shell during the first prototypes.
+  Quickshell starts as one resident launcher host; later work may replace
+  Plasma Shell surfaces individually after launcher and zone qualification.
 - Prefer one launcher experience for applications, projects, commands, and
   theme selection. KRunner can remain installed while the replacement is
   evaluated.
@@ -111,10 +112,12 @@ machine-local state.
 4. **Live reload.** Make theme switching transactional and add per-app reload
    hooks with accurate capability reporting.
 5. **Launcher and window UX.** Follow the bounded design and delivery gates in
-   `docs/launcher.md`: prove a resident Quickshell window on Plasma, add apps,
+   `docs/launcher.md`: prove one resident Quickshell host on Plasma, add apps,
    migrate projects, integrate themes, then cut over with KRunner retained as a
-   fallback. Separately qualify KZones or PlasmaZones against the required
-   FancyZones behavior.
+   fallback. Separately qualify existing zone tools, then implement the smallest
+   KWin-owned zone module if none provide fixed zones, spanning, and independent
+   manual resizing. Evaluate replacing Plasma Shell surfaces only after both
+   tracks pass.
 6. **Cleanup and reproducible setup.** Inventory KDE and package state, remove
    only approved items, split dependency profiles, and verify a clean-home or
    VM setup.
@@ -123,8 +126,8 @@ machine-local state.
 
 ## Open planning questions
 
-- Whether PlasmaZones or KZones best matches the required spanning and manual
-  resize behavior on this Plasma version.
+- Whether an existing KWin zone tool meets the required behavior or a small
+  repository-owned KWin script is necessary.
 - Which non-Arch platforms, if any, should become supported after the primary
   setup is reliable.
 
