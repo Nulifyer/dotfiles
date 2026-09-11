@@ -20,12 +20,13 @@ from a partial palette into a semantic, auditable source for every adapter.
 
 ## In progress
 
-- None. The ownership foundation is complete and ready to commit.
+- Gruvbox and Gruvbox Light catalog entries and generated app outputs are
+  protected by hash-based golden fixtures before renderer semantics change.
 
 ## Next action
 
-Add Gruvbox golden fixtures, then define and validate the semantic color roles
-needed by KDE, VS Code, terminals, Brave, launchers, and app interaction states.
+Define and validate the semantic color roles needed by KDE, VS Code, terminals,
+Brave, launchers, and app interaction states.
 
 ## Blockers
 

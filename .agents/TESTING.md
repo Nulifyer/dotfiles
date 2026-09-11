@@ -19,6 +19,7 @@
 ```text
 git diff --check
 python3 .theme/render.py --validate
+python3 .theme/test_golden.py
 bash -n dotfiles
 python3 .tests/modules.py
 ```
