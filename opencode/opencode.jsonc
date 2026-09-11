@@ -9,8 +9,26 @@
         "apiKey": "cQWJKnjjAMaHlwNi-1KIjuyQh6vKGTe_sFWCE0Ixt-c6WB54QrQu68k8pfbnA2Yf"
       },
       "models": {
-        "quen3.5-4b-FLM": {
-          "name": "Qwen 3.5 4B npu"
+        "qwen3.5-9b-FLM": {
+          "name": "qwen3.5-9b-FLM"
+        },
+
+        "Qwen3.8-27B-GGUF-UD-Q4_K_XL-unsloth": {
+          "name": "Qwen3.8-27B-GGUF-UD-Q4_K_XL-unsloth",
+          "variants": {
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            },
+            "off": {
+              "reasoningEffort": "none"
+            }
+          }
         }
       }
     }
