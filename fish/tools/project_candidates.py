@@ -4,7 +4,6 @@ import os
 import signal
 import sys
 
-
 PROJECT_MARKERS = {
     ".devcontainer",
     ".git",

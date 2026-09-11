@@ -14,6 +14,9 @@ function fish-reload --description 'Reload the Fish configuration'
     exec fish
 end
 
+# Project Editor
+set -gx Z_PROJECT_EDITOR "code"
+
 # Format man pages with bat.
 set -gx MANROFFOPT "-c"
 set -gx MANPAGER "sh -c 'col -bx | bat -l man -p'"

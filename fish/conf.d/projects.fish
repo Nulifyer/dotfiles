@@ -6,9 +6,12 @@
 #
 # Commands:
 #   z [NAME|PATH]             Change to a project
-#   zopen [NAME|PATH]         Open a project in VS Code
+#   zopen [NAME|PATH]         Open a project in the selected editor
 #   zpick                     Search projects in a floating fzf picker
 #   zlink NAME PATH           Link PATH back to ~/Projects/NAME
+#
+# zopen and zpick use Z_PROJECT_EDITOR, defaulting to code.
+# To use Zed: set -Ux Z_PROJECT_EDITOR zed
 
 set -g __z_project_scanner_path \
     (path normalize (status dirname)/../tools/project_candidates.py)
@@ -61,6 +64,14 @@ function z --description 'Jump to a registered project'
     cd -- "$project"
 end
 
+function __z_project_editor
+    if set -q Z_PROJECT_EDITOR; and test -n "$Z_PROJECT_EDITOR"
+        printf '%s\n' "$Z_PROJECT_EDITOR"
+    else
+        printf '%s\n' code
+    end
+end
+
 function zopen --description 'Open a registered project in the selected editor'
     if test (count $argv) -gt 1
         printf 'Usage: zopen [NAME|PATH]\n' >&2
@@ -70,10 +81,7 @@ function zopen --description 'Open a registered project in the selected editor'
     set -l project (__z_resolve_project "$argv[1]")
     or return
 
-    set -l editor code
-    if set -q Z_PROJECT_EDITOR; and test -n "$Z_PROJECT_EDITOR"
-        set editor "$Z_PROJECT_EDITOR"
-    end
+    set -l editor (__z_project_editor)
 
     if not command -q -- "$editor"
         printf 'zopen: editor not found: %s\n' "$editor" >&2
@@ -201,6 +209,7 @@ function zpick --description 'Search registered projects with fzf'
         return 1
     end
 
+    set -l editor (__z_project_editor)
     set -l selection (__z_project_candidates | command fzf \
         --delimiter='\t' \
         --ansi \
@@ -215,7 +224,7 @@ function zpick --description 'Search registered projects with fzf'
         --scroll-off=2 \
         --prompt='> ' \
         --info=inline-right \
-        --footer='enter code  ·  ctrl-e terminal  ·  esc close' \
+        --footer="enter $editor  ·  ctrl-e terminal  ·  esc close" \
         --footer-border=none)
     set -l picker_status $pipestatus[2]
 
@@ -240,11 +249,11 @@ function zpick --description 'Search registered projects with fzf'
 
     switch "$action"
         case enter
-            if not command -q code
-                printf 'zpick: editor not found: code\n' >&2
+            if not command -q -- "$editor"
+                printf 'zpick: editor not found: %s\n' "$editor" >&2
                 return 1
             end
-            command code "$project" >/dev/null 2>&1
+            command "$editor" "$project" >/dev/null 2>&1
         case ctrl-e
             __z_open_project_terminal "$project"
     end
